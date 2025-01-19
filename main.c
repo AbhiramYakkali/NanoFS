@@ -44,25 +44,8 @@ int read_data_from_block(const int block_number, void* buffer, const size_t size
     return 0;
 }
 
-struct dentry read_dentry_from_block(const int block_number, const int dentry_number) {
-    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-
-    const int location = DATA_START + block_number * DEFAULT_BLOCK_SIZE + dentry_number * sizeof(struct dentry);
-    struct dentry dentry;
-
-    fseek(disk, location, SEEK_SET);
-    fread(&dentry, sizeof(struct dentry), 1, disk);
-    return dentry;
-}
-
-int main(const int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("Missing mandatory argument\n");
-    }
-
-    const auto disk_name = DEFAULT_DISK_NAME;
-
-    if (strcmp(argv[1], "init") == 0) {
+int run_fs_command(const int argc, const char command[5][255], const char* disk_name) {
+    if (strcmp(command[0], "init") == 0) {
         // Initialize a filesystem
         const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
 
@@ -106,9 +89,49 @@ int main(const int argc, char *argv[]) {
         };
         write_data_to_block(0, entries, sizeof(entries));
 
+        printf("Initialized NanoFS system: %s\n", disk_name);
+
         return 0;
     }
 
-    printf("Unrecognized command: %s", argv[1]);
+    if (strcmp(command[0], "exit") == 0) {
+        printf("Exiting NanoFS... Changes have been saved to %s\n", disk_name);
+        exit(0);
+    }
+
+    printf("Unrecognized command: %s\n", command[0]);
     return 1;
+}
+
+int main() {
+    const auto disk_name = DEFAULT_DISK_NAME;
+
+    while (true) {
+        printf("nanofs/> ");
+
+        // Get command from the user
+        char input[100];
+        fgets(input, 100, stdin);
+        // Remove newline character
+        input[strlen(input) - 1] = '\0';
+
+        // Split the input string into words (args)
+        char args[5][255];
+        int arg_count = 0;
+        const char *token = strtok(input, " ");
+
+        while (token != NULL) {
+            if (arg_count == 5) {
+                printf("Too many arguments\n");
+                break;
+            }
+
+            strncpy(args[arg_count], token, strlen(token));
+            args[arg_count][strlen(token)] = '\0';
+            arg_count++;
+            token = strtok(nullptr, " ");
+        }
+
+        run_fs_command(arg_count, args, disk_name);
+    }
 }
