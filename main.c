@@ -10,12 +10,17 @@
 
 #define DEFAULT_SIZE 1048576    // 1MB
 #define DEFAULT_BLOCK_SIZE 1024 // 1KB
-#define DEFAULT_INODE_COUNT (DEFAULT_SIZE / 4000) // Default: 1 inode / 4KB
+#define DEFAULT_INODE_COUNT (DEFAULT_SIZE / 4096) // 1 inode / 4KB (256 inodes default)
 #define DEFAULT_DISK_NAME "nanofs_disk"
 
 #define INODE_TABLE_START sizeof(struct superblock)
 #define FREE_BITMAP_START (INODE_TABLE_START + DEFAULT_INODE_COUNT * sizeof(struct inode))
 #define DATA_START (FREE_BITMAP_START + DEFAULT_INODE_COUNT / 8)
+
+#define DENTRIES_PER_BLOCK (DEFAULT_BLOCK_SIZE / sizeof(struct dentry)) // Default: 4
+
+#define MAX_ARGS 5
+#define MAX_ARG_LEN 251
 
 int calculate_block_count(const int total_size, const int block_size, const int inode_count) {
     const int data_size = total_size - sizeof(struct superblock) - inode_count * sizeof(struct inode);
@@ -44,7 +49,18 @@ int read_data_from_block(const int block_number, void* buffer, const size_t size
     return 0;
 }
 
-int run_fs_command(const int argc, const char command[5][255], const char* disk_name) {
+int read_inode(const int inode_number, struct inode* destination) {
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    const int location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+
+    fseek(disk, location, SEEK_SET);
+    fread(destination, 1, sizeof(struct inode), disk);
+    fclose(disk);
+
+    return 0;
+}
+
+int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], const char* disk_name) {
     if (strcmp(command[0], "init") == 0) {
         // Initialize a filesystem
         const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
@@ -61,9 +77,10 @@ int run_fs_command(const int argc, const char command[5][255], const char* disk_
         fwrite(&sb, sizeof(struct superblock), 1, disk);
 
         // Create root inode (always inode 0)
-        struct inode root_inode;
+        struct inode root_inode = {-1};
         root_inode.file_type = _DIRECTORY;
         root_inode.file_size = sizeof(struct dentry) * 2;
+        root_inode.block_pointers[0] = 0;
         root_inode.is_used = true;
 
         fwrite(&root_inode, sizeof(struct inode), 1, disk);
@@ -85,17 +102,46 @@ int run_fs_command(const int argc, const char command[5][255], const char* disk_
         // Initialize root directory's data block
         const struct dentry entries[] = {
             {0, "."},
-            {0, ".."}
+            {0, ".."},
         };
         write_data_to_block(0, entries, sizeof(entries));
 
-        printf("Initialized NanoFS system: %s\n", disk_name);
+        if (verbose) printf("Initialized NanoFS system: %s\n", disk_name);
 
         return 0;
     }
 
+    if (strcmp(command[0], "ls") == 0) {
+        // Retrieve the inode of the cwd
+        struct inode cwd_inode;
+        read_inode(current_working_directory, &cwd_inode);
+
+        const int num_dentries = cwd_inode.file_size / sizeof(struct dentry);
+        int dentries_remaining = num_dentries; // Tracks how many dentries still need to be read
+        int dentries_read = 0;
+        struct dentry dentries[num_dentries];
+
+        // Acquire all dentries
+        while (dentries_remaining > 0) {
+            // Either read 4 dentries, or read the number left if less than 4
+            int dentries_to_read = DENTRIES_PER_BLOCK;
+            if (num_dentries < dentries_to_read) dentries_to_read = num_dentries;
+
+            read_data_from_block(cwd_inode.block_pointers[dentries_read / DENTRIES_PER_BLOCK], &dentries[dentries_read], sizeof(struct dentry) * dentries_to_read);
+
+            dentries_read += dentries_to_read;
+            dentries_remaining -= dentries_to_read;
+        }
+
+        for (int i = 0; i < num_dentries; i++) {
+            printf("%s ", dentries[i].name);
+        }
+        printf("\n");
+        return 0;
+    }
+
     if (strcmp(command[0], "exit") == 0) {
-        printf("Exiting NanoFS... Changes have been saved to %s\n", disk_name);
+        if (verbose) printf("Exiting NanoFS... Changes have been saved to %s\n", disk_name);
         exit(0);
     }
 
@@ -103,7 +149,9 @@ int run_fs_command(const int argc, const char command[5][255], const char* disk_
     return 1;
 }
 
-int main() {
+int main(const int argc, char const *argv[]) {
+    if (argc > 1 && strcmp(argv[1], "verbose") == 0) verbose = true;
+
     const auto disk_name = DEFAULT_DISK_NAME;
 
     while (true) {
@@ -116,7 +164,7 @@ int main() {
         input[strlen(input) - 1] = '\0';
 
         // Split the input string into words (args)
-        char args[5][255];
+        char args[MAX_ARGS][MAX_ARG_LEN];
         int arg_count = 0;
         const char *token = strtok(input, " ");
 
