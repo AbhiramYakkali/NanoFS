@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,9 +23,23 @@
 #define MAX_ARGS 5
 #define MAX_ARG_LEN 251
 
+// Returns -1 if the given disk does not exist
+int get_superblock(const char* disk, struct superblock* destination) {
+    FILE* file = fopen(disk, "r");
+    if (!file) {
+        return -1;
+    }
+
+    fread(destination, sizeof(struct superblock), 1, file);
+    fclose(file);
+
+    return 0;
+}
+
 int calculate_block_count(const int total_size, const int block_size, const int inode_count) {
-    const int data_size = total_size - sizeof(struct superblock) - inode_count * sizeof(struct inode);
-    return data_size / block_size;
+    const double data_size = total_size - sizeof(struct superblock) - inode_count * sizeof(struct inode);
+    // Divide by block_size + 0.125 because every data block needs a corresponding bit in the bitmap
+    return floor(data_size / (block_size + 0.125));
 }
 
 int write_data_to_block(const int block_number, const void *data, const size_t size) {
@@ -60,12 +75,64 @@ int read_inode(const int inode_number, struct inode* destination) {
     return 0;
 }
 
+// Updates the free bitmap table to indicate if a certain block is used (1) or unused (0)
+int set_data_block_status(const int block_number, const int status) {
+    const int byte = block_number / 8;
+    constexpr uint8_t mask = 128;
+
+    FILE *disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    const int location = FREE_BITMAP_START + byte;
+    uint8_t current_bitmap_byte;
+
+    fseek(disk, location, SEEK_SET);
+    fread(&current_bitmap_byte, 1, 1, disk);
+
+    if (status == 1) {
+        current_bitmap_byte |= mask;
+    } else {
+        current_bitmap_byte &= ~mask;
+    }
+
+    fseek(disk, location, SEEK_SET);
+    fwrite(&current_bitmap_byte, 1, 1, disk);
+    fclose(disk);
+
+    return 0;
+}
+
+int get_next_free_data_block() {
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    constexpr int location = FREE_BITMAP_START;
+    const int num_bytes_to_check = current_disk_superblock.block_size / 8;
+    constexpr uint8_t mask = 1 << 7;
+
+    fseek(disk, location, SEEK_SET);
+    uint8_t current_bitmap_byte;
+    for (int byte = 0; byte < num_bytes_to_check; byte++) {
+        fread(&current_bitmap_byte, 1, 1, disk);
+
+        for (int bit = 0; bit < 8; bit++) {
+            if (!(current_bitmap_byte & mask)) {
+                fclose(disk);
+                return byte * 8 + bit;
+            }
+
+            current_bitmap_byte <<= 1;
+        }
+    }
+    fclose(disk);
+
+    // No free data blocks exist
+    return -1;
+}
+
 int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], const char* disk_name) {
     if (strcmp(command[0], "init") == 0) {
         // Initialize a filesystem
         const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
 
         const struct superblock sb = {DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, block_count, sizeof(struct inode), DEFAULT_INODE_COUNT};
+        current_disk_superblock = sb;
 
         FILE *disk = fopen(disk_name, "wb");
         if (disk == NULL) {
@@ -91,6 +158,11 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
             fwrite(&inode, sizeof(struct inode), 1, disk);
         }
 
+        // Write blank bytes for free space bitmap
+        char bitmap[block_count / 8];
+        memset(bitmap, 0, block_count / 8);
+        fwrite(&bitmap, sizeof(bitmap), 1, disk);
+
         // Fill the rest of the space with empty data blocks
         char empty_data_block[DEFAULT_BLOCK_SIZE];
         for (int i = 0; i < block_count; i++) {
@@ -105,6 +177,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
             {0, ".."},
         };
         write_data_to_block(0, entries, sizeof(entries));
+        set_data_block_status(0, 1);
 
         if (verbose) printf("Initialized NanoFS system: %s\n", disk_name);
 
@@ -153,13 +226,18 @@ int main(const int argc, char const *argv[]) {
     if (argc > 1 && strcmp(argv[1], "verbose") == 0) verbose = true;
 
     const auto disk_name = DEFAULT_DISK_NAME;
+    if (verbose) printf("Loading superblock for disk %s...\n", disk_name);
+    const auto result = get_superblock(disk_name, &current_disk_superblock);
+    if (result == -1 && verbose) {
+        printf("Disk %s does not currently exist, create it using 'init' first.\n", disk_name);
+    }
 
     while (true) {
         printf("nanofs/> ");
 
         // Get command from the user
-        char input[100];
-        fgets(input, 100, stdin);
+        char input[MAX_ARGS * MAX_ARG_LEN];
+        fgets(input, MAX_ARGS * MAX_ARG_LEN, stdin);
         // Remove newline character
         input[strlen(input) - 1] = '\0';
 

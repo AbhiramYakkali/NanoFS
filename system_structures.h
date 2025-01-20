@@ -31,4 +31,6 @@ struct dentry {
     char name[251];
 };
 
+struct superblock current_disk_superblock;
+
 #endif //SYSTEM_STRUCTURES_H
