@@ -75,6 +75,17 @@ int read_inode(const int inode_number, struct inode* destination) {
     return 0;
 }
 
+int write_inode(const int inode_number, const struct inode* inode) {
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    const int location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+
+    fseek(disk, location, SEEK_SET);
+    fwrite(inode, 1, sizeof(struct inode), disk);
+    fclose(disk);
+
+    return 0;
+}
+
 // Updates the free bitmap table to indicate if a certain block is used (1) or unused (0)
 int set_data_block_status(const int block_number, const int status) {
     const int byte = block_number / 8;
@@ -100,7 +111,9 @@ int set_data_block_status(const int block_number, const int status) {
     return 0;
 }
 
-int get_next_free_data_block() {
+// Finds the first data block that is unused as specified by the bitmap
+// Returns -1 if no free data blocks exist
+int find_next_free_data_block() {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
     constexpr int location = FREE_BITMAP_START;
     const int num_bytes_to_check = current_disk_superblock.block_size / 8;
@@ -126,9 +139,56 @@ int get_next_free_data_block() {
     return -1;
 }
 
+// Finds the first inonde that is not being used
+// Returns -1 if all inodes are being used
+int find_next_free_inode() {
+    // Start checking at inode 1 because inode 0 is always the root node
+    for (int i = 1; i < DEFAULT_INODE_COUNT; i++) {
+        struct inode inode;
+        read_inode(i, &inode);
+
+        if (!inode.is_used) return i;
+    }
+
+    return -1;
+}
+
+// Adds the specified dentry to the cwd
+int create_dentry(const struct dentry* dentry) {
+    struct inode cwd_inode;
+    read_inode(current_working_directory, &cwd_inode);
+
+    // The number of dentries the cwd currently has determines where the next one goes
+    const int num_dentries = cwd_inode.file_size / sizeof(struct dentry);
+
+    if (num_dentries % DENTRIES_PER_BLOCK == 0) {
+        // New data block must be allocated for the new dentry to be created
+        const auto new_data_block = find_next_free_data_block();
+
+        if (new_data_block == -1) {
+            return -1;
+        }
+
+        cwd_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = new_data_block;
+    }
+    cwd_inode.file_size += sizeof(struct dentry);
+
+    const int block_number = cwd_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
+    const int location = DATA_START + block_number * DEFAULT_BLOCK_SIZE + (num_dentries % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
+
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    fseek(disk, location, SEEK_SET);
+    fwrite(dentry, 1, sizeof(struct dentry), disk);
+    fclose(disk);
+
+    write_inode(current_working_directory, &cwd_inode);
+
+    return 0;
+}
+
 int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], const char* disk_name) {
+    // Initialize a filesystem
     if (strcmp(command[0], "init") == 0) {
-        // Initialize a filesystem
         const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
 
         const struct superblock sb = {DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, block_count, sizeof(struct inode), DEFAULT_INODE_COUNT};
@@ -164,7 +224,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         fwrite(&bitmap, sizeof(bitmap), 1, disk);
 
         // Fill the rest of the space with empty data blocks
-        char empty_data_block[DEFAULT_BLOCK_SIZE];
+        const uint8_t empty_data_block[DEFAULT_BLOCK_SIZE] = {0};
         for (int i = 0; i < block_count; i++) {
             fwrite(empty_data_block, sizeof(empty_data_block), 1, disk);
         }
@@ -174,7 +234,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         // Initialize root directory's data block
         const struct dentry entries[] = {
             {0, "."},
-            {0, ".."},
+            {0, ".."}
         };
         write_data_to_block(0, entries, sizeof(entries));
         set_data_block_status(0, 1);
@@ -184,6 +244,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         return 0;
     }
 
+    // List all files and directories in the current working directory
     if (strcmp(command[0], "ls") == 0) {
         // Retrieve the inode of the cwd
         struct inode cwd_inode;
@@ -213,8 +274,47 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         return 0;
     }
 
+    // Create a new file in the cwd with name command[1]
+    if (strcmp(command[0], "create") == 0) {
+        // Make sure the disk has a spare inode and data block
+        const auto inode_number = find_next_free_inode();
+
+        if (inode_number == -1) {
+            printf("All inodes are being used, unable to create file\n");
+            return -1;
+        }
+
+        const auto data_block_number = find_next_free_data_block();
+
+        if (data_block_number == -1) {
+            printf("All data blocks are being used, unable to create file\n");
+            return -1;
+        }
+
+        struct dentry dentry = {inode_number};
+        strcpy(dentry.name, command[1]);
+        struct inode inode = {-1};
+        inode.file_type = _FILE;
+        inode.file_size = 0;
+        inode.block_pointers[0] = data_block_number;
+        inode.is_used = true;
+
+        struct inode test;
+        read_inode(current_working_directory, &test);
+
+        if (create_dentry(&dentry) == -1) {
+            printf("All data blocks are being used, unable to create new dentry\n");
+            return -1;
+        }
+        write_inode(1, &inode);
+
+        if (verbose) printf("Created new file %s\n", command[1]);
+
+        return 0;
+    }
+
     if (strcmp(command[0], "exit") == 0) {
-        if (verbose) printf("Exiting NanoFS... Changes have been saved to %s\n", disk_name);
+        if (verbose) printf("Exiting NanoFS...");
         exit(0);
     }
 
