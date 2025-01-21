@@ -14,9 +14,9 @@
 #define DEFAULT_INODE_COUNT (DEFAULT_SIZE / 4096) // 1 inode / 4KB (256 inodes default)
 #define DEFAULT_DISK_NAME "nanofs_disk"
 
-#define INODE_TABLE_START sizeof(struct superblock)
-#define FREE_BITMAP_START (INODE_TABLE_START + DEFAULT_INODE_COUNT * sizeof(struct inode))
-#define DATA_START (FREE_BITMAP_START + DEFAULT_INODE_COUNT / 8)
+#define INODE_TABLE_START sizeof(struct superblock) // 0x14 by default
+#define FREE_BITMAP_START (INODE_TABLE_START + DEFAULT_INODE_COUNT * sizeof(struct inode)) // 0x3c14 by default
+#define DATA_START (FREE_BITMAP_START + calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT) / 8) //0x3c92 by defualt
 
 #define DENTRIES_PER_BLOCK (DEFAULT_BLOCK_SIZE / sizeof(struct dentry)) // Default: 4
 
@@ -89,7 +89,8 @@ int write_inode(const int inode_number, const struct inode* inode) {
 // Updates the free bitmap table to indicate if a certain block is used (1) or unused (0)
 int set_data_block_status(const int block_number, const int status) {
     const int byte = block_number / 8;
-    constexpr uint8_t mask = 128;
+    const int bit = block_number % 8;
+    const uint8_t mask = 128 >> bit;
 
     FILE *disk = fopen(DEFAULT_DISK_NAME, "r+b");
     const int location = FREE_BITMAP_START + byte;
@@ -164,12 +165,12 @@ int create_dentry(const struct dentry* dentry) {
     if (num_dentries % DENTRIES_PER_BLOCK == 0) {
         // New data block must be allocated for the new dentry to be created
         const auto new_data_block = find_next_free_data_block();
-
         if (new_data_block == -1) {
             return -1;
         }
 
         cwd_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = new_data_block;
+        set_data_block_status(new_data_block, 1);
     }
     cwd_inode.file_size += sizeof(struct dentry);
 
