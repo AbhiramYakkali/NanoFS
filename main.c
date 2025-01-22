@@ -368,6 +368,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
     }
 
     // Write command, writes command[2] to file command[1]
+    // Assumes that the size of the content is less than data block size
     if (strcmp(command[0], "write") == 0) {
         const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
 
@@ -378,9 +379,38 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         struct inode inode;
         read_inode(inode_number, &inode);
-        const int data_size = sizeof(command[1]) / sizeof(char);
+        const int data_size = sizeof(command[2]) / sizeof(char);
+        inode.file_size = data_size;
 
+        write_inode(inode_number, &inode);
         write_data_to_block(inode.block_pointers[0], &command[2], data_size);
+
+        return 0;
+    }
+
+    // Prints the contents of command[1] to stdout
+    // Assumes that no more than one data block of data is stored in the file
+    if (strcmp(command[0], "read") == 0) {
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
+
+        if (inode_number == -1) {
+            printf("File %s does not exist in the current directory\n", command[1]);
+            return 1;
+        }
+
+        struct inode inode;
+        read_inode(inode_number, &inode);
+        const auto data_size = inode.file_size;
+
+        if (data_size == 0) {
+            printf("\n");
+            return 0;
+        }
+
+        char data[data_size];
+        read_data_from_block(inode.block_pointers[0], &data, data_size);
+
+        printf("%s\n", data);
 
         return 0;
     }
@@ -403,6 +433,10 @@ int main(const int argc, char const *argv[]) {
     if (result == -1 && verbose) {
         printf("Disk %s does not currently exist, create it using 'init' first.\n", disk_name);
     }
+
+    //constexpr char test_args[MAX_ARGS][MAX_ARG_LEN] = {"write", "hello", "TEST!"};
+    //run_fs_command(3, test_args, DEFAULT_DISK_NAME);
+    //return 0;
 
     while (true) {
         printf("nanofs/> ");
