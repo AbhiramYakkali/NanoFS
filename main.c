@@ -379,7 +379,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         struct inode inode;
         read_inode(inode_number, &inode);
-        const int data_size = sizeof(command[2]) / sizeof(char);
+        const int data_size = strlen(command[2]);
         inode.file_size = data_size;
 
         write_inode(inode_number, &inode);
@@ -411,6 +411,40 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         read_data_from_block(inode.block_pointers[0], &data, data_size);
 
         printf("%s\n", data);
+
+        return 0;
+    }
+
+    // Creates a txt file corresponding to the specified file
+    // Txt file will contain the contents of the specified file
+    if (strcmp(command[0], "open") == 0) {
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
+
+        if (inode_number == -1) {
+            printf("File %s does not exist in the current directory\n", command[1]);
+            return 1;
+        }
+
+        struct inode inode;
+        read_inode(inode_number, &inode);
+        const auto data_size = inode.file_size;
+        int bytes_read = 0;
+        char data[data_size];
+
+        while (bytes_read < data_size) {
+            const auto bytes_to_read = __min(data_size - bytes_read, DEFAULT_BLOCK_SIZE);
+
+            read_data_from_block(inode.block_pointers[bytes_read / DEFAULT_BLOCK_SIZE], &data[bytes_read], bytes_to_read);
+
+            bytes_read += bytes_to_read;
+        }
+
+        char* output_file_name = command[1];
+        strcat(output_file_name, ".txt");
+
+        FILE* output_file = fopen(command[1], "wb");
+        fwrite(data, 1, data_size, output_file);
+        fclose(output_file);
 
         return 0;
     }
