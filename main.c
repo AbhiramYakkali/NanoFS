@@ -349,7 +349,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         struct dentry dentry = {inode_number};
         strcpy(dentry.name, command[1]);
-        struct inode inode = {-1};
+        struct inode inode = {0};
         inode.file_type = _FILE;
         inode.file_size = 0;
         inode.block_pointers[0] = data_block_number;
@@ -445,6 +445,57 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         FILE* output_file = fopen(command[1], "wb");
         fwrite(data, 1, data_size, output_file);
         fclose(output_file);
+
+        return 0;
+    }
+
+    // Saves the opened file command[1] on real disk into file command[2] on disk
+    // Can be used to save files opened with 'open' or other files
+    if (strcmp(command[0], "save") == 0) {
+        FILE* input_file = fopen(command[1], "rb");
+
+        if (input_file == NULL) {
+            printf("File %s does not exist in the current real directory\n", command[1]);
+        }
+
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[2]);
+        if (inode_number == -1) {
+            printf("File %s does not exist in the current directory\n", command[2]);
+            return 1;
+        }
+
+        struct inode inode;
+        read_inode(inode_number, &inode);
+
+        char* data[DEFAULT_BLOCK_SIZE];
+
+        int bytes_read = 0;
+        int total_bytes_read = 0;
+
+        do {
+            bytes_read = fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);;
+
+            auto block_number = inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE];
+            if (block_number == 0) {
+                block_number = find_next_free_data_block();
+
+                if (block_number == -1) {
+                    printf("No free data blocks in disk, couldn't save file %s. Only saved %d bytes.\n", command[2], total_bytes_read);
+                    return -1;
+                }
+
+                set_data_block_status(block_number, 1);
+                inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE] = block_number;
+            }
+            write_data_to_block(block_number, data, bytes_read);
+
+            total_bytes_read += bytes_read;
+        } while (bytes_read == DEFAULT_BLOCK_SIZE);
+
+        fclose(input_file);
+
+        inode.file_size = total_bytes_read;
+        write_inode(inode_number, &inode);
 
         return 0;
     }

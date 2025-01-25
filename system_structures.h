@@ -22,7 +22,7 @@ struct superblock {
 struct inode {
     int file_type; // Either 0 (FILE) or 1 (DIRECTORY)
     int file_size; // The number of bytes the file is using on disk
-    int block_pointers[12]; // -1 indicates an unused pointer
+    int block_pointers[12]; // 0 indicates an unused pointer
     int is_used; // 0 = not in use
 };
 
