@@ -219,13 +219,13 @@ int get_dentries(const int directory_number, struct dentry* destination) {
 }
 
 // Checks if a file with the given name exists in the given directory
-bool file_exists_in_directory(const int directory_number, const char* filename) {
+bool file_exists_in_directory(const int directory_number, const char* filename, const int expected_file_type) {
     const int num_dentries = get_num_dentries(directory_number);
     struct dentry dentries[num_dentries];
     get_dentries(current_working_directory, &dentries[0]);
 
     for (int i = 0; i < num_dentries; i++) {
-        if (strcmp(dentries[i].name, filename) == 0) {
+        if (strcmp(dentries[i].name, filename) == 0 && dentries[i].file_type == expected_file_type) {
             return true;
         }
     }
@@ -235,13 +235,13 @@ bool file_exists_in_directory(const int directory_number, const char* filename) 
 
 // Returns the inode number of the given file within the given directory
 // Returns 0 if the file does not exist
-int get_inode_number_of_file(const int directory_number, const char* filename) {
+int get_inode_number_of_file(const int directory_number, const char* filename, const int expected_file_type) {
     const int num_dentries = get_num_dentries(directory_number);
     struct dentry dentries[num_dentries];
     get_dentries(current_working_directory, &dentries[0]);
 
     for (int i = 0; i < num_dentries; i++) {
-        if (strcmp(dentries[i].name, filename) == 0) {
+        if (strcmp(dentries[i].name, filename) == 0 && dentries[i].file_type == expected_file_type) {
             return dentries[i].inode_number;
         }
     }
@@ -268,7 +268,6 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         // Create root inode (always inode 0)
         struct inode root_inode = {-1};
-        root_inode.file_type = _DIRECTORY;
         root_inode.file_size = sizeof(struct dentry) * 2;
         root_inode.block_pointers[0] = 0;
         root_inode.is_used = true;
@@ -296,8 +295,8 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         // Initialize root directory's data block
         const struct dentry entries[] = {
-            {0, "."},
-            {0, ".."}
+            {0, _DIRECTORY, "."},
+            {0, _DIRECTORY, ".."}
         };
         write_data_to_block(0, entries, sizeof(entries));
         set_data_block_status(0, 1);
@@ -324,14 +323,13 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
     // Create a new file in the cwd with name command[1]
     if (strcmp(command[0], "create") == 0) {
         // Check if a file with the same name exists in the cwd
-        if (file_exists_in_directory(current_working_directory, command[1])) {
+        if (file_exists_in_directory(current_working_directory, command[1], _FILE)) {
             printf("File %s already exists in the current directory\n", command[1]);
             return 1;
         }
 
         // Make sure the disk has a spare inode and data block
         const auto inode_number = find_next_free_inode();
-        fflush(stdout);
 
         if (inode_number == -1) {
             printf("All inodes are being used, unable to create file\n");
@@ -347,10 +345,9 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         set_data_block_status(data_block_number, 1);
 
-        struct dentry dentry = {inode_number};
+        struct dentry dentry = {inode_number, _FILE};
         strcpy(dentry.name, command[1]);
         struct inode inode = {0};
-        inode.file_type = _FILE;
         inode.file_size = 0;
         inode.block_pointers[0] = data_block_number;
         inode.is_used = true;
@@ -370,7 +367,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
     // Write command, writes command[2] to file command[1]
     // Assumes that the size of the content is less than data block size
     if (strcmp(command[0], "write") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -391,7 +388,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
     // Prints the contents of command[1] to stdout
     // Assumes that no more than one data block of data is stored in the file
     if (strcmp(command[0], "read") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -418,7 +415,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
     // Creates a txt file corresponding to the specified file
     // Txt file will contain the contents of the specified file
     if (strcmp(command[0], "open") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1]);
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -458,7 +455,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
             printf("File %s does not exist in the current real directory\n", command[1]);
         }
 
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[2]);
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[2], _FILE);
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[2]);
             return 1;
@@ -496,6 +493,51 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         inode.file_size = total_bytes_read;
         write_inode(inode_number, &inode);
+
+        return 0;
+    }
+
+    // Create a new directory in the cwd
+    if (strcmp(command[0], "mkdir") == 0) {
+        if (file_exists_in_directory(current_working_directory, command[1], _DIRECTORY)) {
+            printf("Directory %s exists in the current directory\n", command[1]);
+            return 1;
+        }
+
+        const auto inode_number = find_next_free_inode();
+        if (inode_number == -1) {
+            printf("No free inode exists, unable to create directory %s\n", command[1]);
+            return -1;
+        }
+
+        const auto data_block_number = find_next_free_data_block();
+        if (data_block_number == -1) {
+            printf("No free data block exists, couldn't create directory %s\n", command[1]);
+            return -1;
+        }
+
+        struct dentry dentry = {inode_number, _DIRECTORY};
+        strcpy(dentry.name, command[1]);
+        if (create_dentry(&dentry) == -1) {
+            printf("All data blocks are being used, unable to create new dentry\n");
+            return -1;
+        }
+
+        // Default dentries for a directory
+        const struct dentry entries[] = {
+            {0, _DIRECTORY, "."},
+            {0, _DIRECTORY, ".."}
+        };
+
+        struct inode inode = {0};
+        inode.file_size = sizeof(entries);
+        inode.block_pointers[0] = data_block_number;
+        inode.is_used = 1;
+
+        write_inode(inode_number, &inode);
+
+        write_data_to_block(data_block_number, entries, sizeof(entries));
+        set_data_block_status(data_block_number, 1);
 
         return 0;
     }
