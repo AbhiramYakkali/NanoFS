@@ -525,8 +525,8 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         // Default dentries for a directory
         const struct dentry entries[] = {
-            {0, _DIRECTORY, "."},
-            {0, _DIRECTORY, ".."}
+            {inode_number, _DIRECTORY, "."},
+            {current_working_directory, _DIRECTORY, ".."}
         };
 
         struct inode inode = {0};
@@ -538,6 +538,19 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         write_data_to_block(data_block_number, entries, sizeof(entries));
         set_data_block_status(data_block_number, 1);
+
+        return 0;
+    }
+
+    // Change cwd to specified directory
+    if (strcmp(command[0], "cd") == 0) {
+        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _DIRECTORY);
+        if (inode_number == -1) {
+            printf("Directory %s does not exist in the current directory\n", command[1]);
+            return 1;
+        }
+
+        current_working_directory = inode_number;
 
         return 0;
     }
