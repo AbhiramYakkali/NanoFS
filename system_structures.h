@@ -8,6 +8,10 @@
 #define _FILE 0
 #define _DIRECTORY 1
 
+
+#define DATA_BLOCK_FREE 0
+#define DATA_BLOCK_USED 1
+
 // Keeps track of the inode representing the current working directory
 int current_working_directory = 0;
 

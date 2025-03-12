@@ -99,7 +99,7 @@ int set_data_block_status(const int block_number, const int status) {
     fseek(disk, location, SEEK_SET);
     fread(&current_bitmap_byte, 1, 1, disk);
 
-    if (status == 1) {
+    if (status == DATA_BLOCK_USED) {
         current_bitmap_byte |= mask;
     } else {
         current_bitmap_byte &= ~mask;
@@ -126,7 +126,7 @@ int find_next_free_data_block() {
         fread(&current_bitmap_byte, 1, 1, disk);
 
         for (int bit = 0; bit < 8; bit++) {
-            if (!(current_bitmap_byte & mask)) {
+            if ((current_bitmap_byte & mask) == DATA_BLOCK_USED) {
                 fclose(disk);
                 return byte * 8 + bit;
             }
@@ -343,7 +343,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
             return -1;
         }
 
-        set_data_block_status(data_block_number, 1);
+        set_data_block_status(data_block_number, DATA_BLOCK_USED);
 
         struct dentry dentry = {inode_number, _FILE};
         strcpy(dentry.name, command[1]);
@@ -354,7 +354,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         if (create_dentry(&dentry) == -1) {
             printf("All data blocks are being used, unable to create new dentry\n");
-            set_data_block_status(data_block_number, 0);
+            set_data_block_status(data_block_number, DATA_BLOCK_FREE);
             return -1;
         }
         write_inode(inode_number, &inode);
@@ -481,7 +481,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
                     return -1;
                 }
 
-                set_data_block_status(block_number, 1);
+                set_data_block_status(block_number, DATA_BLOCK_USED);
                 inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE] = block_number;
             }
             write_data_to_block(block_number, data, bytes_read);
@@ -515,11 +515,13 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
             printf("No free data block exists, couldn't create directory %s\n", command[1]);
             return -1;
         }
+        set_data_block_status(data_block_number, DATA_BLOCK_USED);
 
         struct dentry dentry = {inode_number, _DIRECTORY};
         strcpy(dentry.name, command[1]);
         if (create_dentry(&dentry) == -1) {
             printf("All data blocks are being used, unable to create new dentry\n");
+            set_data_block_status(data_block_number, DATA_BLOCK_FREE);
             return -1;
         }
 
@@ -537,7 +539,6 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         write_inode(inode_number, &inode);
 
         write_data_to_block(data_block_number, entries, sizeof(entries));
-        set_data_block_status(data_block_number, 1);
 
         return 0;
     }
