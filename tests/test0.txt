@@ -1,26 +1,20 @@
 SEND init
 EXPECT
-nanofs/>
 
 SEND ls
 EXPECT
 . ..
-nanofs/>
 
 SEND create testfile
 EXPECT
-nanofs/>
 
 SEND ls
 EXPECT
 . .. testfile
-nanofs/>
 
 SEND write testfile Hello!
 EXPECT
-nanofs/>
 
 SEND read testfile
 EXPECT
 Hello!
-nanofs/>

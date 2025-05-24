@@ -30,7 +30,11 @@ def read_until_prompt(proc, prompt='nanofs/>'):
         output += char
         if output.strip().endswith(prompt):
             break
-    return output.strip()
+
+    # Remove the 'nanofs/>' from the end of the output so it doesn't need to be included in the EXPECT sections
+    lines = output.strip().splitlines()
+    lines.pop()
+    return "\n".join(lines).strip()
 
 def run_test_file(test_path, exec_path="./Filesystem"):
     with open(test_path, 'r') as f:
