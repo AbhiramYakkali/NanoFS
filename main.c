@@ -476,7 +476,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         int total_bytes_read = 0;
 
         do {
-            bytes_read = fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);;
+            bytes_read = fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);
 
             auto block_number = inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE];
             if (block_number == 0) {
@@ -635,6 +635,7 @@ int main(const int argc, char const *argv[]) {
 
     while (true) {
         printf("nanofs/> ");
+        fflush(stdout);
 
         // Get command from the user
         char input[MAX_ARGS * MAX_ARG_LEN];
