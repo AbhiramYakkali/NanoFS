@@ -252,7 +252,10 @@ int get_inode_number_of_file(const int directory_number, const char* filename, c
     struct dentry dentries[num_dentries];
     get_dentries(current_working_directory, &dentries[0]);
 
-    return dentries[get_dentry_number_of_file(&dentries[0], num_dentries, filename ,expected_file_type)].inode_number;
+    const auto dentry_number = get_dentry_number_of_file(&dentries[0], num_dentries, filename ,expected_file_type);
+    if (dentry_number == -1) return -1;
+
+    return dentries[dentry_number].inode_number;
 }
 
 int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], const char* disk_name) {
