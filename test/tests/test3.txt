@@ -5,6 +5,6 @@ SEND read nonexistent_file
 EXPECT
 File nonexistent_file does not exist in the current directory
 
-SEND write nonexistent_file
+SEND write nonexistent_file Message
 EXPECT
 File nonexistent_file does not exist in the current directory

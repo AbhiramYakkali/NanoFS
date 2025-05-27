@@ -1,0 +1,45 @@
+SEND init
+EXPECT
+
+SEND create testfile
+EXPECT
+
+SEND write testfile InitialMessage
+EXPECT
+
+SEND read testfile
+EXPECT
+InitialMessage
+
+SEND rm testfile
+EXPECT
+
+SEND ls
+EXPECT
+. ..
+
+SEND read testfile
+EXPECT
+File testfile does not exist in the current directory
+
+SEND write testfile AnotherMessage
+EXPECT
+File testfile does not exist in the current directory
+
+SEND rm testfile
+EXPECT
+File testfile does not exist in the current directory
+
+SEND create testfile
+EXPECT
+
+SEND read testfile
+EXPECT
+
+
+SEND write testfile FinalMessage
+EXPECT
+
+SEND read testfile
+EXPECT
+FinalMessage

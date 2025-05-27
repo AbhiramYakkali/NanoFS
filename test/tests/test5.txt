@@ -8,6 +8,6 @@ SEND read file
 EXPECT
 File file does not exist in the current directory
 
-SEND write file
+SEND write file Message
 EXPECT
 File file does not exist in the current directory

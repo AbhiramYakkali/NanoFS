@@ -1,5 +1,8 @@
 This file is a list of all the current test cases and what they are intended to test
 
+
+FUNCTIONALITY TESTS
+
 test0:
 - Create file, write to and read from that file
 
@@ -10,14 +13,21 @@ test2:
 - Create a directory, create files inside and outside, write to and read from files
 - Make sure files can only be read from within their cwd
 
+test7:
+- Delete a file and ensure that it no longer exists
+- Try recreating a file with the same name and make sure it doesn't retain old contents
+
+
+ERROR CHECK TESTS
+
 test3:
-- Error check: Trying to read/write from a file that doesn't exist
+- Trying to read/write from a file that doesn't exist
 
 test4:
-- Error check: Trying to enter a directory that doesn't exist
+- Trying to enter a directory that doesn't exist
 
 test5:
-- Error check: Trying to read/write from a file that doesn't exist when there's a directory of the same name
+- Trying to read/write from a file that doesn't exist when there's a directory of the same name
 
 test6:
-- Error check: Trying to enter a directory that doesn't exist when there's a file of the same name
+- Trying to enter a directory that doesn't exist when there's a file of the same name
