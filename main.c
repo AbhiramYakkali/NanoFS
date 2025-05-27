@@ -258,7 +258,7 @@ int get_inode_number_of_file(const int directory_number, const char* filename, c
     return dentries[dentry_number].inode_number;
 }
 
-int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], const char* disk_name) {
+int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1], const char* disk_name) {
     // Initialize a filesystem
     if (strcmp(command[0], "init") == 0) {
         const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
