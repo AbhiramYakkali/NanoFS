@@ -37,7 +37,7 @@ int get_superblock(const char* disk, struct superblock* destination) {
 }
 
 int calculate_block_count(const int total_size, const int block_size, const int inode_count) {
-    const double data_size = total_size - sizeof(struct superblock) - inode_count * sizeof(struct inode);
+    const double data_size = (double) total_size - sizeof(struct superblock) - (double) inode_count * sizeof(struct inode);
     // Divide by block_size + 0.125 because every data block needs a corresponding bit in the bitmap
     return floor(data_size / (block_size + 0.125));
 }
@@ -160,7 +160,7 @@ int create_dentry(const struct dentry* dentry) {
     read_inode(current_working_directory, &cwd_inode);
 
     // The number of dentries the cwd currently has determines where the next one goes
-    const int num_dentries = cwd_inode.file_size / sizeof(struct dentry);
+    const int num_dentries = (int) (cwd_inode.file_size / sizeof(struct dentry));
 
     if (num_dentries % DENTRIES_PER_BLOCK == 0) {
         // New data block must be allocated for the new dentry to be created
@@ -191,7 +191,7 @@ int create_dentry(const struct dentry* dentry) {
 int get_num_dentries(const int directory_number) {
     struct inode directory_inode;
     read_inode(directory_number, &directory_inode);
-    return directory_inode.file_size / sizeof(struct dentry);
+    return (int) (directory_inode.file_size / sizeof(struct dentry));
 }
 
 // Finds all the dentries in the specified directory
@@ -199,7 +199,7 @@ int get_dentries(const int directory_number, struct dentry* destination) {
     struct inode directory_inode;
     read_inode(directory_number, &directory_inode);
 
-    const int num_dentries = directory_inode.file_size / sizeof(struct dentry);
+    const int num_dentries = (int) (directory_inode.file_size / sizeof(struct dentry));
     int dentries_remaining = num_dentries; // Tracks how many dentries still need to be read
     int dentries_read = 0;
 
@@ -385,7 +385,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
 
         struct inode inode;
         read_inode(inode_number, &inode);
-        const int data_size = strlen(command[2]);
+        const int data_size = (int) strlen(command[2]);
         inode.file_size = data_size;
 
         write_inode(inode_number, &inode);
@@ -479,7 +479,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN], co
         int total_bytes_read = 0;
 
         do {
-            bytes_read = fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);
+            bytes_read = (int) fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);
 
             auto block_number = inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE];
             if (block_number == 0) {
@@ -647,7 +647,7 @@ int main(const int argc, char const *argv[]) {
         input[strlen(input) - 1] = '\0';
 
         // Split the input string into words (args)
-        char args[MAX_ARGS][MAX_ARG_LEN];
+        char args[MAX_ARGS][MAX_ARG_LEN + 1];
         int arg_count = 0;
         const char *token = strtok(input, " ");
 
@@ -657,8 +657,14 @@ int main(const int argc, char const *argv[]) {
                 break;
             }
 
-            strncpy(args[arg_count], token, strlen(token));
-            args[arg_count][strlen(token)] = '\0';
+            const auto token_length = strlen(token);
+            if (token_length > MAX_ARG_LEN) {
+                printf("Argument too long\n");
+                break;
+            }
+
+            strncpy(args[arg_count], token, token_length);
+            args[arg_count][token_length] = '\0';
             arg_count++;
             token = strtok(nullptr, " ");
         }
