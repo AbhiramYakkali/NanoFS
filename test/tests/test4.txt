@@ -1,0 +1,6 @@
+SEND init
+EXPECT
+
+SEND cd nonexistent_dir
+EXPECT
+Directory nonexistent_dir does not exist in the current directory

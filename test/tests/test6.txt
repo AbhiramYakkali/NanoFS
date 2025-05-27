@@ -1,0 +1,9 @@
+SEND init
+EXPECT
+
+SEND create dir
+EXPECT
+
+SEND cd dir
+EXPECT
+Directory dir does not exist in the current directory

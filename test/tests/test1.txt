@@ -1,0 +1,26 @@
+SEND init
+EXPECT
+
+SEND create file1
+EXPECT
+
+SEND create file2
+EXPECT
+
+SEND ls
+EXPECT
+. .. file1 file2
+
+SEND write file1 ThisIsFile1
+EXPECT
+
+SEND write file2 InsideFileTwo
+EXPECT
+
+SEND read file1
+EXPECT
+ThisIsFile1
+
+SEND read file2
+EXPECT
+InsideFileTwo

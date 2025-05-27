@@ -1,0 +1,13 @@
+SEND init
+EXPECT
+
+SEND mkdir file
+EXPECT
+
+SEND read file
+EXPECT
+File file does not exist in the current directory
+
+SEND write file
+EXPECT
+File file does not exist in the current directory

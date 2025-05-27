@@ -1,0 +1,66 @@
+SEND init
+EXPECT
+
+SEND create fileoutofdir
+EXPECT
+
+SEND mkdir directory
+EXPECT
+
+SEND ls
+EXPECT
+. .. fileoutofdir directory
+
+SEND write fileoutofdir ThisFileIsInTheRoot
+EXPECT
+
+SEND cd directory
+EXPECT
+
+SEND ls
+EXPECT
+. ..
+
+SEND create fileindir
+EXPECT
+
+SEND ls
+EXPECT
+. .. fileindir
+
+SEND write fileindir FileInsideADirectory
+EXPECT
+
+SEND read fileindir
+EXPECT
+FileInsideADirectory
+
+SEND cd ..
+EXPECT
+
+SEND ls
+EXPECT
+. .. fileoutofdir directory
+
+SEND read fileoutofdir
+EXPECT
+ThisFileIsInTheRoot
+
+SEND read fileindir
+EXPECT
+File fileindir does not exist in the current directory
+
+SEND cd directory
+EXPECT
+
+SEND ls
+EXPECT
+. .. fileindir
+
+SEND read fileindir
+EXPECT
+FileInsideADirectory
+
+SEND read fileoutofdir
+EXPECT
+File fileoutofdir does not exist in the current directory
