@@ -1,8 +1,10 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND create dir
 EXPECT
+Created new file dir, inode 1, data block 1
 
 SEND cd dir
 EXPECT

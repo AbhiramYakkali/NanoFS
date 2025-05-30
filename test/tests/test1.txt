@@ -1,11 +1,14 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND create file1
 EXPECT
+Created new file file1, inode 1, data block 1
 
 SEND create file2
 EXPECT
+Created new file file2, inode 2, data block 2
 
 SEND ls
 EXPECT
@@ -13,14 +16,18 @@ EXPECT
 
 SEND write file1 ThisIsFile1
 EXPECT
+Wrote 11 bytes to file file1, inode 1, data block 1
 
 SEND write file2 InsideFileTwo
 EXPECT
+Wrote 13 bytes to file file2, inode 2, data block 2
 
 SEND read file1
 EXPECT
 ThisIsFile1
+Read 11 bytes from file file1, inode 1, data block 1
 
 SEND read file2
 EXPECT
 InsideFileTwo
+Read 13 bytes from file file2, inode 2, data block 2

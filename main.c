@@ -368,7 +368,8 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
         }
         write_inode(inode_number, &inode);
 
-        if (verbose) printf("Created new file %s\n", command[1]);
+        if (verbose) printf("Created new file %s, inode %d, data block %d\n",
+            command[1], inode_number, data_block_number);
 
         return 0;
     }
@@ -391,6 +392,9 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
         write_inode(inode_number, &inode);
         write_data_to_block(inode.block_pointers[0], &command[2], data_size);
 
+        if (verbose) printf("Wrote %d bytes to file %s, inode %d, data block %d\n",
+            data_size, command[1], inode_number, inode.block_pointers[0]);
+
         return 0;
     }
 
@@ -409,14 +413,19 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
         const auto data_size = inode.file_size;
 
         if (data_size == 0) {
-            printf("\n");
+            printf("\nRead 0 bytes from file %s, inode %d, data block %d\n",
+                command[1], inode_number, inode.block_pointers[0]);
             return 0;
         }
 
-        char data[data_size];
+        char data[data_size + 1];
         read_data_from_block(inode.block_pointers[0], &data, data_size);
+        data[data_size] = '\0';
 
         printf("%s\n", data);
+
+        if (verbose) printf("Read %d bytes from file %s, inode %d, data block %d\n",
+            data_size, command[1], inode_number, inode.block_pointers[0]);
 
         return 0;
     }
@@ -549,6 +558,9 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
 
         write_data_to_block(data_block_number, entries, sizeof(entries));
 
+        if (verbose) printf("Created new directory %s, inode %d, data block %d\n",
+            command[1], inode_number, data_block_number);
+
         return 0;
     }
 
@@ -597,6 +609,8 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
         cwd_inode.file_size -= sizeof(struct dentry);
         write_inode(current_working_directory, &cwd_inode);
 
+        if (verbose) printf("Removed file %s, inode %d\n", command[1], inode_number);
+
         return 0;
     }
 
@@ -609,6 +623,8 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
         }
 
         current_working_directory = inode_number;
+
+        if (verbose) printf("Switched to directory %s, inode %d\n", command[1], inode_number);
 
         return 0;
     }

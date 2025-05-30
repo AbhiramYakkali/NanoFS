@@ -1,11 +1,14 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND create fileoutofdir
 EXPECT
+Created new file fileoutofdir, inode 1, data block 1
 
 SEND mkdir directory
 EXPECT
+Created new directory directory, inode 2, data block 2
 
 SEND ls
 EXPECT
@@ -13,9 +16,11 @@ EXPECT
 
 SEND write fileoutofdir ThisFileIsInTheRoot
 EXPECT
+Wrote 19 bytes to file fileoutofdir, inode 1, data block 1
 
 SEND cd directory
 EXPECT
+Switched to directory directory, inode 2
 
 SEND ls
 EXPECT
@@ -23,6 +28,7 @@ EXPECT
 
 SEND create fileindir
 EXPECT
+Created new file fileindir, inode 3, data block 3
 
 SEND ls
 EXPECT
@@ -30,13 +36,16 @@ EXPECT
 
 SEND write fileindir FileInsideADirectory
 EXPECT
+Wrote 20 bytes to file fileindir, inode 3, data block 3
 
 SEND read fileindir
 EXPECT
 FileInsideADirectory
+Read 20 bytes from file fileindir, inode 3, data block 3
 
 SEND cd ..
 EXPECT
+Switched to directory .., inode 0
 
 SEND ls
 EXPECT
@@ -45,6 +54,7 @@ EXPECT
 SEND read fileoutofdir
 EXPECT
 ThisFileIsInTheRoot
+Read 19 bytes from file fileoutofdir, inode 1, data block 1
 
 SEND read fileindir
 EXPECT
@@ -52,6 +62,7 @@ File fileindir does not exist in the current directory
 
 SEND cd directory
 EXPECT
+Switched to directory directory, inode 2
 
 SEND ls
 EXPECT
@@ -60,6 +71,7 @@ EXPECT
 SEND read fileindir
 EXPECT
 FileInsideADirectory
+Read 20 bytes from file fileindir, inode 3, data block 3
 
 SEND read fileoutofdir
 EXPECT

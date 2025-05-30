@@ -44,7 +44,7 @@ def run_test_file(test_path, exec_path="../Filesystem"):
 
     # Start the executable (persistent process)
     proc = subprocess.Popen(
-        [exec_path],
+        [exec_path, "verbose"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

@@ -31,3 +31,6 @@ test5:
 
 test6:
 - Trying to enter a directory that doesn't exist when there's a file of the same name
+
+test8:
+- Checking if files with the same starting string can coexist

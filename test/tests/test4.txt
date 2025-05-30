@@ -1,5 +1,6 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND cd nonexistent_dir
 EXPECT

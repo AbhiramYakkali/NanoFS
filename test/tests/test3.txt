@@ -1,5 +1,6 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND read nonexistent_file
 EXPECT

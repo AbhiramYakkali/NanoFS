@@ -1,18 +1,23 @@
 SEND init
 EXPECT
+Initialized NanoFS system: nanofs_disk
 
 SEND create testfile
 EXPECT
+Created new file testfile, inode 1, data block 1
 
 SEND write testfile InitialMessage
 EXPECT
+Wrote 14 bytes to file testfile, inode 1, data block 1
 
 SEND read testfile
 EXPECT
 InitialMessage
+Read 14 bytes from file testfile, inode 1, data block 1
 
 SEND rm testfile
 EXPECT
+Removed file testfile, inode 1
 
 SEND ls
 EXPECT
@@ -32,14 +37,18 @@ File testfile does not exist in the current directory
 
 SEND create testfile
 EXPECT
+Created new file testfile, inode 1, data block 1
 
 SEND read testfile
 EXPECT
 
+Read 0 bytes from file testfile, inode 1, data block 1
 
 SEND write testfile FinalMessage
 EXPECT
+Wrote 12 bytes to file testfile, inode 1, data block 1
 
 SEND read testfile
 EXPECT
 FinalMessage
+Read 12 bytes from file testfile, inode 1, data block 1

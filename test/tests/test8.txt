@@ -1,0 +1,33 @@
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND create file0
+EXPECT
+Created new file file0, inode 1, data block 1
+
+SEND write file0 First
+EXPECT
+Wrote 5 bytes to file file0, inode 1, data block 1
+
+SEND read file1
+EXPECT
+File file1 does not exist in the current directory
+
+SEND create file1
+EXPECT
+Created new file file1, inode 2, data block 2
+
+SEND write file1 Second
+EXPECT
+Wrote 6 bytes to file file1, inode 2, data block 2
+
+SEND read file1
+EXPECT
+Second
+Read 6 bytes from file file1, inode 2, data block 2
+
+SEND read file0
+EXPECT
+First
+Read 5 bytes from file file0, inode 1, data block 1
