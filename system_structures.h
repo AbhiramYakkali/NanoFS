@@ -32,7 +32,7 @@ struct inode {
 struct dentry {
     int inode_number;
     uint8_t file_type; // Either 0 (FILE) or 1 (DIRECTORY)
-    char name[252];
+    char name[248];
 };
 
 struct superblock current_disk_superblock;

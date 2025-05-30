@@ -21,7 +21,7 @@
 #define DENTRIES_PER_BLOCK (DEFAULT_BLOCK_SIZE / sizeof(struct dentry)) // Default: 4
 
 #define MAX_ARGS 5
-#define MAX_ARG_LEN 251
+#define MAX_ARG_LEN 248
 
 // Returns -1 if the given disk does not exist
 int get_superblock(const char* disk, struct superblock* destination) {
