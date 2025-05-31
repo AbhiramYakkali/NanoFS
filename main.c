@@ -250,12 +250,37 @@ int get_dentry_number_of_file(const struct dentry* dentries, const int num_dentr
 int get_inode_number_of_file(const int directory_number, const char* filename, const int expected_file_type) {
     const int num_dentries = get_num_dentries(directory_number);
     struct dentry dentries[num_dentries];
-    get_dentries(current_working_directory, &dentries[0]);
+    get_dentries(directory_number, &dentries[0]);
 
     const auto dentry_number = get_dentry_number_of_file(&dentries[0], num_dentries, filename ,expected_file_type);
     if (dentry_number == -1) return -1;
 
     return dentries[dentry_number].inode_number;
+}
+
+// Follows a path (dir/dir/dir/...) to find the inode number of the file/directory at the end
+int get_inode_number_of_path(char* path, const int expected_file_type) {
+    auto current_directory = current_working_directory;
+
+    // Follow the path to get to the final directory/file
+    auto dir = strtok(path, "/");
+
+    while (dir != NULL) {
+        // Find the next directory in the path to see if we've reached the end of the path
+        const auto next_dir = strtok(nullptr, "/");
+        const int current_expected_file_type = (next_dir == NULL) ? expected_file_type : _DIRECTORY;
+
+        const auto inode_number = get_inode_number_of_file(current_directory, dir, current_expected_file_type);
+        if (inode_number == -1) {
+            printf("Directory %s does not exist\n", dir);
+            return -1;
+        }
+
+        current_directory = inode_number;
+        dir = next_dir;
+    }
+
+    return current_directory;
 }
 
 int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1], const char* disk_name) {
@@ -377,7 +402,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
     // Write command, writes command[2] to file command[1]
     // Assumes that the size of the content is less than data block size
     if (strcmp(command[0], "write") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
+        const auto inode_number = get_inode_number_of_path(command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -401,7 +426,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
     // Prints the contents of command[1] to stdout
     // Assumes that no more than one data block of data is stored in the file
     if (strcmp(command[0], "read") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
+        const auto inode_number = get_inode_number_of_path(command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -433,7 +458,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
     // Creates a txt file corresponding to the specified file
     // Txt file will contain the contents of the specified file
     if (strcmp(command[0], "open") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _FILE);
+        const auto inode_number = get_inode_number_of_path(command[1], _FILE);
 
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[1]);
@@ -473,7 +498,7 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
             printf("File %s does not exist in the current real directory\n", command[1]);
         }
 
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[2], _FILE);
+        const auto inode_number = get_inode_number_of_path(command[2], _FILE);
         if (inode_number == -1) {
             printf("File %s does not exist in the current directory\n", command[2]);
             return 1;
@@ -616,15 +641,10 @@ int run_fs_command(const int argc, const char command[MAX_ARGS][MAX_ARG_LEN + 1]
 
     // Change cwd to specified directory
     if (strcmp(command[0], "cd") == 0) {
-        const auto inode_number = get_inode_number_of_file(current_working_directory, command[1], _DIRECTORY);
-        if (inode_number == -1) {
-            printf("Directory %s does not exist in the current directory\n", command[1]);
-            return 1;
-        }
+        const auto new_directory = get_inode_number_of_path(command[1], _DIRECTORY);
+        if (new_directory != -1) current_working_directory = new_directory;
 
-        current_working_directory = inode_number;
-
-        if (verbose) printf("Switched to directory %s, inode %d\n", command[1], inode_number);
+        if (verbose) printf("Switched to directory %s, inode %d\n", command[1], current_working_directory);
 
         return 0;
     }
