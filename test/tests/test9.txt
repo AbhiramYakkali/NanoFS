@@ -1,0 +1,58 @@
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND mkdir dir1
+EXPECT
+Created new directory dir1, inode 1, data block 1
+
+SEND mkdir dir1/dir2
+EXPECT
+Created new directory dir1/dir2, inode 2, data block 2
+
+SEND cd dir1
+EXPECT
+Switched to directory dir1, inode 1
+
+SEND mkdir dir3
+EXPECT
+Created new directory dir3, inode 3, data block 3
+
+SEND cd ..
+EXPECT
+Switched to directory .., inode 0
+
+SEND create dir1/testfile
+EXPECT
+Created new file dir1/testfile, inode 4, data block 4
+
+SEND write dir1/testfile PathResolvedWrite
+EXPECT
+Wrote 17 bytes to file dir1/testfile, inode 4, data block 4
+
+SEND read dir1/testfile
+EXPECT
+PathResolvedWrite
+Read 17 bytes from file dir1/testfile, inode 4, data block 4
+
+SEND create dir1/dir2/deepfile
+EXPECT
+Created new file dir1/dir2/deepfile, inode 5, data block 6
+
+SEND write dir1/dir2/deepfile DeepPath
+EXPECT
+Wrote 8 bytes to file dir1/dir2/deepfile, inode 5, data block 6
+
+SEND read dir1/dir2/deepfile
+EXPECT
+DeepPath
+Read 8 bytes from file dir1/dir2/deepfile, inode 5, data block 6
+
+SEND cd dir1
+EXPECT
+Switched to directory dir1, inode 1
+
+SEND read dir2/deepfile
+EXPECT
+DeepPath
+Read 8 bytes from file dir2/deepfile, inode 5, data block 6

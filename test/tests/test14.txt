@@ -1,0 +1,103 @@
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND create file0
+EXPECT
+Created new file file0, inode 1, data block 1
+
+SEND create file1
+EXPECT
+Created new file file1, inode 2, data block 2
+
+SEND create file2
+EXPECT
+Created new file file2, inode 3, data block 3
+
+SEND create file3
+EXPECT
+Created new file file3, inode 4, data block 4
+
+SEND create file4
+EXPECT
+Created new file file4, inode 5, data block 6
+
+SEND create file5
+EXPECT
+Created new file file5, inode 6, data block 7
+
+SEND ls
+EXPECT
+. .. file0 file1 file2 file3 file4 file5
+
+SEND write file0 Zero
+EXPECT
+Wrote 4 bytes to file file0, inode 1, data block 1
+
+SEND write file1 One
+EXPECT
+Wrote 3 bytes to file file1, inode 2, data block 2
+
+SEND write file2 Two
+EXPECT
+Wrote 3 bytes to file file2, inode 3, data block 3
+
+SEND write file3 Three
+EXPECT
+Wrote 5 bytes to file file3, inode 4, data block 4
+
+SEND write file4 Four
+EXPECT
+Wrote 4 bytes to file file4, inode 5, data block 6
+
+SEND write file5 Five
+EXPECT
+Wrote 4 bytes to file file5, inode 6, data block 7
+
+SEND read file0
+EXPECT
+Zero
+Read 4 bytes from file file0, inode 1, data block 1
+
+SEND read file1
+EXPECT
+One
+Read 3 bytes from file file1, inode 2, data block 2
+
+SEND read file2
+EXPECT
+Two
+Read 3 bytes from file file2, inode 3, data block 3
+
+SEND read file3
+EXPECT
+Three
+Read 5 bytes from file file3, inode 4, data block 4
+
+SEND read file4
+EXPECT
+Four
+Read 4 bytes from file file4, inode 5, data block 6
+
+SEND read file5
+EXPECT
+Five
+Read 4 bytes from file file5, inode 6, data block 7
+
+SEND rm file2
+EXPECT
+Removed file file2, inode 3
+
+SEND ls
+EXPECT
+. .. file0 file1 file5 file3 file4
+
+SEND read file3
+EXPECT
+Three
+Read 5 bytes from file file3, inode 4, data block 4
+
+SEND read file5
+EXPECT
+Five
+Read 4 bytes from file file5, inode 6, data block 7
