@@ -100,8 +100,18 @@ def run_test_file(test_path, exec_path="../Filesystem"):
         print("FAILED")
 
 # Run tests
-num_tests = len(os.listdir("tests"))
-for test in range(num_tests):
-    test_file = f"tests/test{test}.txt"
-    print(f"Running test{test}...", end = " ")
-    run_test_file(test_file)
+import sys
+
+if len(sys.argv) > 1:
+    # Run specific tests provided as command line arguments
+    for test_num in sys.argv[1:]:
+        test_file = f"tests/test{test_num}.txt"
+        print(f"Running test{test_num}...", end = " ")
+        run_test_file(test_file)
+else:
+    # Run all tests
+    num_tests = len(os.listdir("tests"))
+    for test in range(num_tests):
+        test_file = f"tests/test{test}.txt"
+        print(f"Running test{test}...", end = " ")
+        run_test_file(test_file)
