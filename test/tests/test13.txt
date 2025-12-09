@@ -1,0 +1,95 @@
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND mkdir subdir
+EXPECT
+Created new directory subdir, inode 1, data block 1
+
+SEND create subdir/file1
+EXPECT
+Created new file subdir/file1, inode 2, data block 2
+
+SEND create subdir/file2
+EXPECT
+Created new file subdir/file2, inode 3, data block 3
+
+SEND create subdir/file3
+EXPECT
+Allocated new data block 5 for directory, inode 1
+Created new file subdir/file3, inode 4, data block 4
+
+SEND write subdir/file1 Content1
+EXPECT
+Wrote 8 bytes to file subdir/file1, inode 2, data block 2
+
+SEND write subdir/file2 Content2
+EXPECT
+Wrote 8 bytes to file subdir/file2, inode 3, data block 3
+
+SEND write subdir/file3 Content3
+EXPECT
+Wrote 8 bytes to file subdir/file3, inode 4, data block 4
+
+SEND cd subdir
+EXPECT
+Switched to directory subdir, inode 1
+
+SEND ls
+EXPECT
+. .. file1 file2 file3
+
+SEND rm file2
+EXPECT
+Removed file file2, inode 3
+
+SEND ls
+EXPECT
+. .. file1 file3
+
+SEND read file1
+EXPECT
+Content1
+Read 8 bytes from file file1, inode 2, data block 2
+
+SEND read file3
+EXPECT
+Content3
+Read 8 bytes from file file3, inode 4, data block 4
+
+SEND read file2
+EXPECT
+File file2 does not exist in the current directory
+
+SEND rm file1
+EXPECT
+Removed file file1, inode 2
+
+SEND rm file3
+EXPECT
+Removed file file3, inode 4
+
+SEND ls
+EXPECT
+. ..
+
+SEND cd ..
+EXPECT
+Switched to directory .., inode 0
+
+SEND ls
+EXPECT
+. .. subdir
+
+SEND create newfile
+EXPECT
+Created new file newfile, inode 2, data block 2
+
+SEND write newfile ReusingInode
+EXPECT
+Wrote 12 bytes to file newfile, inode 2, data block 2
+
+SEND read newfile
+EXPECT
+ReusingInode
+Read 12 bytes from file newfile, inode 2, data block 2

@@ -1,0 +1,52 @@
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND create myfile
+EXPECT
+Created new file myfile, inode 1, data block 1
+
+SEND write myfile FirstContent
+EXPECT
+Wrote 12 bytes to file myfile, inode 1, data block 1
+
+SEND read myfile
+EXPECT
+FirstContent
+Read 12 bytes from file myfile, inode 1, data block 1
+
+SEND write myfile SecondContentLonger
+EXPECT
+Wrote 19 bytes to file myfile, inode 1, data block 1
+
+SEND read myfile
+EXPECT
+SecondContentLonger
+Read 19 bytes from file myfile, inode 1, data block 1
+
+SEND write myfile Short
+EXPECT
+Wrote 5 bytes to file myfile, inode 1, data block 1
+
+SEND read myfile
+EXPECT
+Short
+Read 5 bytes from file myfile, inode 1, data block 1
+
+SEND write myfile
+EXPECT
+Wrote 0 bytes to file myfile, inode 1, data block 1
+
+SEND read myfile
+EXPECT
+
+Read 0 bytes from file myfile, inode 1, data block 1
+
+SEND write myfile AfterEmpty
+EXPECT
+Wrote 10 bytes to file myfile, inode 1, data block 1
+
+SEND read myfile
+EXPECT
+AfterEmpty
+Read 10 bytes from file myfile, inode 1, data block 1

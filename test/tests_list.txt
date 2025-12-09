@@ -17,6 +17,30 @@ test7:
 - Delete a file and ensure that it no longer exists
 - Try recreating a file with the same name and make sure it doesn't retain old contents
 
+test9:
+- Test path resolution for reading and writing files using paths (dir/dir/file)
+- Create nested directories and files using path notation
+
+test10:
+- Test duplicate file and directory creation
+- Verify that files and directories can have the same name (different types)
+
+test11:
+- Test overwriting file contents multiple times
+- Write different length content including empty strings
+
+test12:
+- Test deeply nested directories (3+ levels)
+- Create files at different nesting levels and access them via paths
+
+test13:
+- Test removing files from subdirectories
+- Verify inode and data block reuse after deletion
+
+test14:
+- Test creating many files in one directory (exceeding DENTRIES_PER_BLOCK = 4)
+- Verify multiple data blocks are allocated for directory entries
+
 
 ERROR CHECK TESTS
 
