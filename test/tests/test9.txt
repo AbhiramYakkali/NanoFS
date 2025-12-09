@@ -24,6 +24,7 @@ Switched to directory .., inode 0
 
 SEND create dir1/testfile
 EXPECT
+Allocated new data block 5 for directory, inode 1
 Created new file dir1/testfile, inode 4, data block 4
 
 SEND write dir1/testfile PathResolvedWrite

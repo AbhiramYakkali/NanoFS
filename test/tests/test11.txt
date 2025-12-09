@@ -33,7 +33,7 @@ EXPECT
 Short
 Read 5 bytes from file myfile, inode 1, data block 1
 
-SEND write myfile ""
+SEND write myfile
 EXPECT
 Wrote 0 bytes to file myfile, inode 1, data block 1
 

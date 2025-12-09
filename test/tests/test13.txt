@@ -8,15 +8,16 @@ Created new directory subdir, inode 1, data block 1
 
 SEND create subdir/file1
 EXPECT
-Created new file file1, inode 2, data block 2
+Created new file subdir/file1, inode 2, data block 2
 
 SEND create subdir/file2
 EXPECT
-Created new file file2, inode 3, data block 3
+Created new file subdir/file2, inode 3, data block 3
 
 SEND create subdir/file3
 EXPECT
-Created new file file3, inode 4, data block 4
+Allocated new data block 5 for directory, inode 1
+Created new file subdir/file3, inode 4, data block 4
 
 SEND write subdir/file1 Content1
 EXPECT

@@ -8,23 +8,23 @@ Created new directory level1, inode 1, data block 1
 
 SEND mkdir level1/level2
 EXPECT
-Created new directory level2, inode 2, data block 2
+Created new directory level1/level2, inode 2, data block 2
 
 SEND mkdir level1/level2/level3
 EXPECT
-Created new directory level3, inode 3, data block 3
+Created new directory level1/level2/level3, inode 3, data block 3
 
 SEND create level1/file1
 EXPECT
-Created new file file1, inode 4, data block 4
+Created new file level1/file1, inode 4, data block 4
 
 SEND create level1/level2/file2
 EXPECT
-Created new file file2, inode 5, data block 5
+Created new file level1/level2/file2, inode 5, data block 5
 
 SEND create level1/level2/level3/file3
 EXPECT
-Created new file file3, inode 6, data block 6
+Created new file level1/level2/level3/file3, inode 6, data block 6
 
 SEND write level1/file1 Level1Content
 EXPECT
@@ -44,7 +44,7 @@ Switched to directory level1, inode 1
 
 SEND ls
 EXPECT
-. .. file1 level2
+. .. level2 file1
 
 SEND cd level2
 EXPECT
@@ -52,7 +52,7 @@ Switched to directory level2, inode 2
 
 SEND ls
 EXPECT
-. .. file2 level3
+. .. level3 file2
 
 SEND cd level3
 EXPECT

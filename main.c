@@ -171,6 +171,8 @@ int create_dentry(const struct dentry* dentry, const int directory) {
 
         dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = new_data_block;
         set_data_block_status(new_data_block, 1);
+
+        if (verbose) printf("Allocated new data block %d for directory, inode %d\n", new_data_block, directory);
     }
     dir_inode.file_size += sizeof(struct dentry);
 
@@ -257,13 +259,13 @@ int get_inode_number_of_file(const int directory_number, const char* filename, c
     struct dentry dentries[num_dentries];
     get_dentries(directory_number, &dentries[0]);
 
-    const auto dentry_number = get_dentry_number_of_file(&dentries[0], num_dentries, filename ,expected_file_type);
+    const auto dentry_number = get_dentry_number_of_file(&dentries[0], num_dentries, filename, expected_file_type);
     if (dentry_number == -1) return -1;
 
     return dentries[dentry_number].inode_number;
 }
 
-// If path is dir/dir/../file, sets 'last' to 'file'
+// If path is dir/dir/.../file, sets 'last' to 'file'
 char* get_last_of_path(char* path) {
     char* last = strrchr(path, '/');
 
@@ -383,6 +385,9 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
         write_data_to_block(0, entries, sizeof(entries));
         set_data_block_status(0, 1);
 
+        // Reset current working directory to prevent softlocking
+        current_working_directory = 0;
+
         if (verbose) printf("Initialized NanoFS system: %s\n", disk_name);
 
         return 0;
@@ -469,11 +474,18 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
 
         struct inode inode;
         read_inode(inode_number, &inode);
-        const int data_size = (int) strlen(command[2]);
+
+        // No third arg: clear file contents
+        char content[MAX_ARG_LEN + 1] = "";
+        if (argc > 2) {
+            strcpy(content, command[2]);
+        }
+
+        const int data_size = (int) strlen(content);
         inode.file_size = data_size;
 
         write_inode(inode_number, &inode);
-        write_data_to_block(inode.block_pointers[0], &command[2], data_size);
+        write_data_to_block(inode.block_pointers[0], &content, data_size);
 
         if (verbose) printf("Wrote %d bytes to file %s, inode %d, data block %d\n",
             data_size, command[1], inode_number, inode.block_pointers[0]);
@@ -640,7 +652,7 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
         // Default dentries for a directory
         const struct dentry entries[] = {
             {inode_number, _DIRECTORY, "."},
-            {current_working_directory, _DIRECTORY, ".."}
+            {inode_number_dir, _DIRECTORY, ".."}
         };
 
         struct inode inode = {0};

@@ -12,11 +12,12 @@ Created new file file1, inode 2, data block 2
 
 SEND create file2
 EXPECT
+Allocated new data block 4 for directory, inode 0
 Created new file file2, inode 3, data block 3
 
 SEND create file3
 EXPECT
-Created new file file3, inode 4, data block 4
+Created new file file3, inode 4, data block 5
 
 SEND create file4
 EXPECT
@@ -44,7 +45,7 @@ Wrote 3 bytes to file file2, inode 3, data block 3
 
 SEND write file3 Three
 EXPECT
-Wrote 5 bytes to file file3, inode 4, data block 4
+Wrote 5 bytes to file file3, inode 4, data block 5
 
 SEND write file4 Four
 EXPECT
@@ -72,7 +73,7 @@ Read 3 bytes from file file2, inode 3, data block 3
 SEND read file3
 EXPECT
 Three
-Read 5 bytes from file file3, inode 4, data block 4
+Read 5 bytes from file file3, inode 4, data block 5
 
 SEND read file4
 EXPECT
@@ -95,7 +96,7 @@ EXPECT
 SEND read file3
 EXPECT
 Three
-Read 5 bytes from file file3, inode 4, data block 4
+Read 5 bytes from file file3, inode 4, data block 5
 
 SEND read file5
 EXPECT

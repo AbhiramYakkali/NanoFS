@@ -20,12 +20,13 @@ Directory mydir exists in the current directory
 
 SEND create mydir
 EXPECT
+Allocated new data block 4 for directory, inode 0
 Created new file mydir, inode 3, data block 3
 
 SEND mkdir myfile
 EXPECT
-Created new directory myfile, inode 4, data block 4
+Created new directory myfile, inode 4, data block 5
 
 SEND ls
 EXPECT
-. .. myfile mydir myfile mydir
+. .. myfile mydir mydir myfile
