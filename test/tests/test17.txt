@@ -1,0 +1,795 @@
+# Test resource exhaustion - running out of inodes
+# Creates 255 files (max available) then tries to create one more
+
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND create inode0
+EXPECT
+
+SEND create inode1
+EXPECT
+
+SEND create inode2
+EXPECT
+
+SEND create inode3
+EXPECT
+
+SEND create inode4
+EXPECT
+
+SEND create inode5
+EXPECT
+
+SEND create inode6
+EXPECT
+
+SEND create inode7
+EXPECT
+
+SEND create inode8
+EXPECT
+
+SEND create inode9
+EXPECT
+
+SEND create inode10
+EXPECT
+
+SEND create inode11
+EXPECT
+
+SEND create inode12
+EXPECT
+
+SEND create inode13
+EXPECT
+
+SEND create inode14
+EXPECT
+
+SEND create inode15
+EXPECT
+
+SEND create inode16
+EXPECT
+
+SEND create inode17
+EXPECT
+
+SEND create inode18
+EXPECT
+
+SEND create inode19
+EXPECT
+
+SEND create inode20
+EXPECT
+
+SEND create inode21
+EXPECT
+
+SEND create inode22
+EXPECT
+
+SEND create inode23
+EXPECT
+
+SEND create inode24
+EXPECT
+
+SEND create inode25
+EXPECT
+
+SEND create inode26
+EXPECT
+
+SEND create inode27
+EXPECT
+
+SEND create inode28
+EXPECT
+
+SEND create inode29
+EXPECT
+
+SEND create inode30
+EXPECT
+
+SEND create inode31
+EXPECT
+
+SEND create inode32
+EXPECT
+
+SEND create inode33
+EXPECT
+
+SEND create inode34
+EXPECT
+
+SEND create inode35
+EXPECT
+
+SEND create inode36
+EXPECT
+
+SEND create inode37
+EXPECT
+
+SEND create inode38
+EXPECT
+
+SEND create inode39
+EXPECT
+
+SEND create inode40
+EXPECT
+
+SEND create inode41
+EXPECT
+
+SEND create inode42
+EXPECT
+
+SEND create inode43
+EXPECT
+
+SEND create inode44
+EXPECT
+
+SEND create inode45
+EXPECT
+
+SEND create inode46
+EXPECT
+
+SEND create inode47
+EXPECT
+
+SEND create inode48
+EXPECT
+
+SEND create inode49
+EXPECT
+
+SEND create inode50
+EXPECT
+
+SEND create inode51
+EXPECT
+
+SEND create inode52
+EXPECT
+
+SEND create inode53
+EXPECT
+
+SEND create inode54
+EXPECT
+
+SEND create inode55
+EXPECT
+
+SEND create inode56
+EXPECT
+
+SEND create inode57
+EXPECT
+
+SEND create inode58
+EXPECT
+
+SEND create inode59
+EXPECT
+
+SEND create inode60
+EXPECT
+
+SEND create inode61
+EXPECT
+
+SEND create inode62
+EXPECT
+
+SEND create inode63
+EXPECT
+
+SEND create inode64
+EXPECT
+
+SEND create inode65
+EXPECT
+
+SEND create inode66
+EXPECT
+
+SEND create inode67
+EXPECT
+
+SEND create inode68
+EXPECT
+
+SEND create inode69
+EXPECT
+
+SEND create inode70
+EXPECT
+
+SEND create inode71
+EXPECT
+
+SEND create inode72
+EXPECT
+
+SEND create inode73
+EXPECT
+
+SEND create inode74
+EXPECT
+
+SEND create inode75
+EXPECT
+
+SEND create inode76
+EXPECT
+
+SEND create inode77
+EXPECT
+
+SEND create inode78
+EXPECT
+
+SEND create inode79
+EXPECT
+
+SEND create inode80
+EXPECT
+
+SEND create inode81
+EXPECT
+
+SEND create inode82
+EXPECT
+
+SEND create inode83
+EXPECT
+
+SEND create inode84
+EXPECT
+
+SEND create inode85
+EXPECT
+
+SEND create inode86
+EXPECT
+
+SEND create inode87
+EXPECT
+
+SEND create inode88
+EXPECT
+
+SEND create inode89
+EXPECT
+
+SEND create inode90
+EXPECT
+
+SEND create inode91
+EXPECT
+
+SEND create inode92
+EXPECT
+
+SEND create inode93
+EXPECT
+
+SEND create inode94
+EXPECT
+
+SEND create inode95
+EXPECT
+
+SEND create inode96
+EXPECT
+
+SEND create inode97
+EXPECT
+
+SEND create inode98
+EXPECT
+
+SEND create inode99
+EXPECT
+
+SEND create inode100
+EXPECT
+
+SEND create inode101
+EXPECT
+
+SEND create inode102
+EXPECT
+
+SEND create inode103
+EXPECT
+
+SEND create inode104
+EXPECT
+
+SEND create inode105
+EXPECT
+
+SEND create inode106
+EXPECT
+
+SEND create inode107
+EXPECT
+
+SEND create inode108
+EXPECT
+
+SEND create inode109
+EXPECT
+
+SEND create inode110
+EXPECT
+
+SEND create inode111
+EXPECT
+
+SEND create inode112
+EXPECT
+
+SEND create inode113
+EXPECT
+
+SEND create inode114
+EXPECT
+
+SEND create inode115
+EXPECT
+
+SEND create inode116
+EXPECT
+
+SEND create inode117
+EXPECT
+
+SEND create inode118
+EXPECT
+
+SEND create inode119
+EXPECT
+
+SEND create inode120
+EXPECT
+
+SEND create inode121
+EXPECT
+
+SEND create inode122
+EXPECT
+
+SEND create inode123
+EXPECT
+
+SEND create inode124
+EXPECT
+
+SEND create inode125
+EXPECT
+
+SEND create inode126
+EXPECT
+
+SEND create inode127
+EXPECT
+
+SEND create inode128
+EXPECT
+
+SEND create inode129
+EXPECT
+
+SEND create inode130
+EXPECT
+
+SEND create inode131
+EXPECT
+
+SEND create inode132
+EXPECT
+
+SEND create inode133
+EXPECT
+
+SEND create inode134
+EXPECT
+
+SEND create inode135
+EXPECT
+
+SEND create inode136
+EXPECT
+
+SEND create inode137
+EXPECT
+
+SEND create inode138
+EXPECT
+
+SEND create inode139
+EXPECT
+
+SEND create inode140
+EXPECT
+
+SEND create inode141
+EXPECT
+
+SEND create inode142
+EXPECT
+
+SEND create inode143
+EXPECT
+
+SEND create inode144
+EXPECT
+
+SEND create inode145
+EXPECT
+
+SEND create inode146
+EXPECT
+
+SEND create inode147
+EXPECT
+
+SEND create inode148
+EXPECT
+
+SEND create inode149
+EXPECT
+
+SEND create inode150
+EXPECT
+
+SEND create inode151
+EXPECT
+
+SEND create inode152
+EXPECT
+
+SEND create inode153
+EXPECT
+
+SEND create inode154
+EXPECT
+
+SEND create inode155
+EXPECT
+
+SEND create inode156
+EXPECT
+
+SEND create inode157
+EXPECT
+
+SEND create inode158
+EXPECT
+
+SEND create inode159
+EXPECT
+
+SEND create inode160
+EXPECT
+
+SEND create inode161
+EXPECT
+
+SEND create inode162
+EXPECT
+
+SEND create inode163
+EXPECT
+
+SEND create inode164
+EXPECT
+
+SEND create inode165
+EXPECT
+
+SEND create inode166
+EXPECT
+
+SEND create inode167
+EXPECT
+
+SEND create inode168
+EXPECT
+
+SEND create inode169
+EXPECT
+
+SEND create inode170
+EXPECT
+
+SEND create inode171
+EXPECT
+
+SEND create inode172
+EXPECT
+
+SEND create inode173
+EXPECT
+
+SEND create inode174
+EXPECT
+
+SEND create inode175
+EXPECT
+
+SEND create inode176
+EXPECT
+
+SEND create inode177
+EXPECT
+
+SEND create inode178
+EXPECT
+
+SEND create inode179
+EXPECT
+
+SEND create inode180
+EXPECT
+
+SEND create inode181
+EXPECT
+
+SEND create inode182
+EXPECT
+
+SEND create inode183
+EXPECT
+
+SEND create inode184
+EXPECT
+
+SEND create inode185
+EXPECT
+
+SEND create inode186
+EXPECT
+
+SEND create inode187
+EXPECT
+
+SEND create inode188
+EXPECT
+
+SEND create inode189
+EXPECT
+
+SEND create inode190
+EXPECT
+
+SEND create inode191
+EXPECT
+
+SEND create inode192
+EXPECT
+
+SEND create inode193
+EXPECT
+
+SEND create inode194
+EXPECT
+
+SEND create inode195
+EXPECT
+
+SEND create inode196
+EXPECT
+
+SEND create inode197
+EXPECT
+
+SEND create inode198
+EXPECT
+
+SEND create inode199
+EXPECT
+
+SEND create inode200
+EXPECT
+
+SEND create inode201
+EXPECT
+
+SEND create inode202
+EXPECT
+
+SEND create inode203
+EXPECT
+
+SEND create inode204
+EXPECT
+
+SEND create inode205
+EXPECT
+
+SEND create inode206
+EXPECT
+
+SEND create inode207
+EXPECT
+
+SEND create inode208
+EXPECT
+
+SEND create inode209
+EXPECT
+
+SEND create inode210
+EXPECT
+
+SEND create inode211
+EXPECT
+
+SEND create inode212
+EXPECT
+
+SEND create inode213
+EXPECT
+
+SEND create inode214
+EXPECT
+
+SEND create inode215
+EXPECT
+
+SEND create inode216
+EXPECT
+
+SEND create inode217
+EXPECT
+
+SEND create inode218
+EXPECT
+
+SEND create inode219
+EXPECT
+
+SEND create inode220
+EXPECT
+
+SEND create inode221
+EXPECT
+
+SEND create inode222
+EXPECT
+
+SEND create inode223
+EXPECT
+
+SEND create inode224
+EXPECT
+
+SEND create inode225
+EXPECT
+
+SEND create inode226
+EXPECT
+
+SEND create inode227
+EXPECT
+
+SEND create inode228
+EXPECT
+
+SEND create inode229
+EXPECT
+
+SEND create inode230
+EXPECT
+
+SEND create inode231
+EXPECT
+
+SEND create inode232
+EXPECT
+
+SEND create inode233
+EXPECT
+
+SEND create inode234
+EXPECT
+
+SEND create inode235
+EXPECT
+
+SEND create inode236
+EXPECT
+
+SEND create inode237
+EXPECT
+
+SEND create inode238
+EXPECT
+
+SEND create inode239
+EXPECT
+
+SEND create inode240
+EXPECT
+
+SEND create inode241
+EXPECT
+
+SEND create inode242
+EXPECT
+
+SEND create inode243
+EXPECT
+
+SEND create inode244
+EXPECT
+
+SEND create inode245
+EXPECT
+
+SEND create inode246
+EXPECT
+
+SEND create inode247
+EXPECT
+
+SEND create inode248
+EXPECT
+
+SEND create inode249
+EXPECT
+
+SEND create inode250
+EXPECT
+
+SEND create inode251
+EXPECT
+
+SEND create inode252
+EXPECT
+
+SEND create inode253
+EXPECT
+
+SEND create inode254
+EXPECT
+
+SEND create one_too_many
+EXPECT
+All inodes are being used, unable to create file
+
+SEND write inode0 StillWorks
+EXPECT
+
+SEND read inode0
+EXPECT
+StillWorks
+
+SEND rm inode100
+EXPECT
+
+SEND create reused_inode
+EXPECT
+
+SEND write reused_inode ReuseSuccess
+EXPECT
+
+SEND read reused_inode
+EXPECT
+ReuseSuccess

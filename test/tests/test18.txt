@@ -1,0 +1,119 @@
+# Test rm command with path resolution
+# Verify rm works with paths like dir/file and dir/dir/file
+
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND mkdir dir1
+EXPECT
+Created new directory dir1, inode 1, data block 1
+
+SEND mkdir dir1/dir2
+EXPECT
+Created new directory dir1/dir2, inode 2, data block 2
+
+SEND mkdir dir1/dir2/dir3
+EXPECT
+Created new directory dir1/dir2/dir3, inode 3, data block 3
+
+SEND create dir1/file1
+EXPECT
+Created new file dir1/file1, inode 4, data block 4
+
+SEND create dir1/dir2/file2
+EXPECT
+Created new file dir1/dir2/file2, inode 5, data block 5
+
+SEND create dir1/dir2/dir3/file3
+EXPECT
+Created new file dir1/dir2/dir3/file3, inode 6, data block 6
+
+SEND write dir1/file1 Content1
+EXPECT
+Wrote 8 bytes to file dir1/file1, inode 4, data block 4
+
+SEND write dir1/dir2/file2 Content2
+EXPECT
+Wrote 8 bytes to file dir1/dir2/file2, inode 5, data block 5
+
+SEND write dir1/dir2/dir3/file3 Content3
+EXPECT
+Wrote 8 bytes to file dir1/dir2/dir3/file3, inode 6, data block 6
+
+SEND rm dir1/file1
+EXPECT
+Removed file dir1/file1, inode 4
+
+SEND cd dir1
+EXPECT
+Switched to directory dir1, inode 1
+
+SEND ls
+EXPECT
+. .. dir2
+
+SEND read file1
+EXPECT
+File file1 does not exist in the current directory
+
+SEND cd ..
+EXPECT
+Switched to directory .., inode 0
+
+SEND rm dir1/dir2/file2
+EXPECT
+Removed file dir1/dir2/file2, inode 5
+
+SEND cd dir1/dir2
+EXPECT
+Switched to directory dir1/dir2, inode 2
+
+SEND ls
+EXPECT
+. .. dir3
+
+SEND read file2
+EXPECT
+File file2 does not exist in the current directory
+
+SEND cd ../..
+EXPECT
+Switched to directory ../.., inode 0
+
+SEND rm dir1/dir2/dir3/file3
+EXPECT
+Removed file dir1/dir2/dir3/file3, inode 6
+
+SEND cd dir1/dir2/dir3
+EXPECT
+Switched to directory dir1/dir2/dir3, inode 3
+
+SEND ls
+EXPECT
+. ..
+
+SEND cd ../../..
+EXPECT
+Switched to directory ../../.., inode 0
+
+SEND create testfile
+EXPECT
+Created new file testfile, inode 4, data block 4
+
+SEND write testfile InodeReused
+EXPECT
+Wrote 11 bytes to file testfile, inode 4, data block 4
+
+SEND read testfile
+EXPECT
+InodeReused
+Read 11 bytes from file testfile, inode 4, data block 4
+
+SEND rm nonexistent/path/file
+EXPECT
+Directory nonexistent does not exist
+
+SEND rm dir1/nonexistent
+EXPECT
+File nonexistent does not exist in the current directory

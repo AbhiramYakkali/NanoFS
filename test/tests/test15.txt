@@ -1,0 +1,37 @@
+# Test save and open commands with multi-line and multi-block files
+
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND create smallfile
+EXPECT
+Created new file smallfile, inode 1, data block 1
+
+SEND save small_input.txt smallfile
+EXPECT
+
+SEND read smallfile
+EXPECT
+This is a test file.
+It has multiple lines.
+Line three here.
+And a fourth line!
+Read 79 bytes from file smallfile, inode 1, data block 1
+
+SEND open smallfile
+EXPECT
+
+FILE_VERIFY smallfile.txt small_input.txt
+
+SEND create largefile
+EXPECT
+Created new file largefile, inode 2, data block 2
+
+SEND save large_input.txt largefile
+EXPECT
+
+SEND open largefile
+EXPECT
+
+FILE_VERIFY largefile.txt large_input.txt
