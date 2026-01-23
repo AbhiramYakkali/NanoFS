@@ -311,13 +311,9 @@ int get_inode_number_of_path(const char path[249], const int expected_file_type,
             }
 
             // The file does not exist, but the directory that should contain it does
-            // if (current_expected_file_type == _FILE) {
-                *result = current_directory;
-                return 1;
-            // }
+            *result = current_directory;
+            return 1;
         }
-
-        // printf("curr: %s %d\n", dir, inode_number);
 
         current_directory = inode_number;
         dir = next_dir;
@@ -401,7 +397,6 @@ int run_command_ls() {
 int run_command_create(char* file_path) {
     int inode_number_dir;
     const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number_dir);
-    // printf("directory inode: %d\n", inode_number_dir);
 
     // Check if a file with the same name exists in the cwd
     if (result == 0) {
@@ -665,66 +660,72 @@ int change_directory(char directory[MAX_ARG_LEN + 1], const bool print) {
 
 int run_command_rm(char* file_path) {
     // Resolve path: Switch to the specified directory, perform remove, then swap back to CWD
-        const auto cwd = current_working_directory;
-        const auto filename = get_last_of_path(file_path);
-        const auto dir_path = get_all_except_last_of_path(file_path);
+    const auto cwd = current_working_directory;
+    const auto filename = get_last_of_path(file_path);
+    const auto dir_path = get_all_except_last_of_path(file_path);
+    int dir_inode = current_working_directory;
 
-        if (strcmp(dir_path, "") != 0) {
-            if (change_directory(dir_path, false) != 0) return -1;
-        }
+    if (strcmp(dir_path, "") != 0) {
+        const auto result = get_inode_number_of_path(dir_path, _DIRECTORY, &dir_inode);
 
-        const auto num_dentries = get_num_dentries(current_working_directory);
-        struct dentry dentries[num_dentries];
-        get_dentries(current_working_directory, &dentries[0]);
-
-        const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, _FILE);
-        if (file_dentry_number == -1) {
-            printf("File %s does not exist in the current directory\n", filename);
+        if (result != 0) {
+            if (result == 1) printf("File %s does not exist in the current directory\n", file_path);
             return 1;
         }
+    }
 
-        // Mark all data blocks used by this file as free
-        const auto inode_number = dentries[file_dentry_number].inode_number;
-        struct inode inode;
-        read_inode(inode_number, &inode);
-        for (int i = 0; i < 12; i++) {
-            if (inode.block_pointers[i] == 0) break;
+    const auto num_dentries = get_num_dentries(dir_inode);
+    struct dentry dentries[num_dentries];
+    get_dentries(dir_inode, &dentries[0]);
 
-            set_data_block_status(inode.block_pointers[i], DATA_BLOCK_FREE);
-        }
-        inode.is_used = 0;
-        write_inode(inode_number, &inode);
+    const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, _FILE);
+    if (file_dentry_number == -1) {
+        printf("File %s does not exist in the current directory\n", filename);
+        return 1;
+    }
+
+    // Mark all data blocks used by this file as free
+    const auto inode_number = dentries[file_dentry_number].inode_number;
+    struct inode inode;
+    read_inode(inode_number, &inode);
+    for (int i = 0; i < 12; i++) {
+        if (inode.block_pointers[i] == 0) break;
+
+        set_data_block_status(inode.block_pointers[i], DATA_BLOCK_FREE);
+    }
+    inode.is_used = 0;
+    write_inode(inode_number, &inode);
 
 
-        struct inode cwd_inode;
-        read_inode(current_working_directory, &cwd_inode);
+    struct inode cwd_inode;
+    read_inode(dir_inode, &cwd_inode);
 
-        // Remove corresponding dentry from this directory
-        // Do this by overwriting corresponding dentry with the last dentry in the directory
-        // Only needed if the dentry to be removed is NOT the last dentry in the list
-        if (file_dentry_number != num_dentries - 1) {
-            const int location = DATA_START + cwd_inode.block_pointers[(file_dentry_number / DENTRIES_PER_BLOCK)] * DEFAULT_BLOCK_SIZE + (file_dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
+    // Remove corresponding dentry from this directory
+    // Do this by overwriting corresponding dentry with the last dentry in the directory
+    // Only needed if the dentry to be removed is NOT the last dentry in the list
+    if (file_dentry_number != num_dentries - 1) {
+        const int location = DATA_START + cwd_inode.block_pointers[(file_dentry_number / DENTRIES_PER_BLOCK)] * DEFAULT_BLOCK_SIZE + (file_dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
 
-            FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-            fseek(disk, location, SEEK_SET);
-            fwrite(&dentries[num_dentries - 1], 1, sizeof(struct dentry), disk);
-            fclose(disk);
-        }
+        FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+        fseek(disk, location, SEEK_SET);
+        fwrite(&dentries[num_dentries - 1], 1, sizeof(struct dentry), disk);
+        fclose(disk);
+    }
 
-        // Update size of cwd_inode
-        // TODO: Also set last data block as free if the last dentry was just copied out of it
-        cwd_inode.file_size -= sizeof(struct dentry);
-        write_inode(current_working_directory, &cwd_inode);
+    // Update size of cwd_inode
+    // TODO: Also set last data block as free if the last dentry was just copied out of it
+    cwd_inode.file_size -= sizeof(struct dentry);
+    write_inode(dir_inode, &cwd_inode);
 
-        if (verbose) {
-            if (strcmp(dir_path, "") != 0) printf("Removed file %s/%s, inode %d\n", dir_path, filename, inode_number);
-            else printf("Removed file %s, inode %d\n", file_path, inode_number);
-        }
+    if (verbose) {
+        if (strcmp(dir_path, "") != 0) printf("Removed file %s/%s, inode %d\n", dir_path, filename, inode_number);
+        else printf("Removed file %s, inode %d\n", file_path, inode_number);
+    }
 
-        // Swap back to the old cwd (if path resolution was used)
-        current_working_directory = cwd;
+    // Swap back to the old cwd (if path resolution was used)
+    // current_working_directory = cwd;
 
-        return 0;
+    return 0;
 }
 
 int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], const char* disk_name) {
