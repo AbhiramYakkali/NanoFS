@@ -21,7 +21,7 @@
 #define DENTRIES_PER_BLOCK (DEFAULT_BLOCK_SIZE / sizeof(struct dentry)) // Default: 4
 
 #define MAX_ARGS 5
-#define MAX_ARG_LEN 248
+#define MAX_ARG_LEN 252
 
 // Returns -1 if the given disk does not exist
 int get_superblock(const char* disk, struct superblock* destination) {
@@ -299,7 +299,6 @@ int get_inode_number_of_path(const char path[249], const int expected_file_type,
     while (dir != NULL) {
         // Find the next directory in the path to see if we've reached the end of the path
         const auto next_dir = strtok(nullptr, "/");
-        // printf("next: %s", next_dir);
         const int current_expected_file_type = (next_dir == NULL) ? expected_file_type : _DIRECTORY;
 
         const auto inode_number = get_inode_number_of_file(current_directory, dir, current_expected_file_type);
@@ -659,8 +658,6 @@ int run_command_cd(char directory[MAX_ARG_LEN + 1], const bool print) {
 }
 
 int run_command_rm(char* file_path) {
-    // Resolve path: Switch to the specified directory, perform remove, then swap back to CWD
-    const auto cwd = current_working_directory;
     const auto filename = get_last_of_path(file_path);
     const auto dir_path = get_all_except_last_of_path(file_path);
     int dir_inode = current_working_directory;

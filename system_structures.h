@@ -20,19 +20,20 @@ int current_working_directory = 0;
 bool verbose = false;
 
 struct superblock {
-    int total_size, block_size, block_count, inode_size, inode_count;
+    uint32_t total_size;
+    uint16_t block_size, block_count, inode_size, inode_count;
 };
 
 struct inode {
-    int file_size; // The number of bytes the file is using on disk
-    int block_pointers[12]; // 0 indicates an unused pointer
-    int is_used; // 0 = not in use
+    uint16_t file_size; // The number of bytes the file is using on disk
+    uint16_t block_pointers[12]; // 0 indicates an unused pointer
+    uint8_t is_used; // 0 = not in use
 };
 
 struct dentry {
-    int inode_number;
+    uint16_t inode_number;
     uint8_t file_type; // Either 0 (FILE) or 1 (DIRECTORY)
-    char name[248];
+    char name[253];
 };
 
 struct superblock current_disk_superblock;
