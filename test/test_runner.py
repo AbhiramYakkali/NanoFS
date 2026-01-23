@@ -90,13 +90,13 @@ def run_test_file(test_path, exec_path="../Filesystem"):
                     print_diff("\n".join(expected_normalized), "\n".join(actual_normalized))
                     test_passed = False
             else:
-                print("⚠️ Missing EXPECT after SEND")
+                print("Missing EXPECT after SEND")
 
         elif lines[i].startswith("FILE_VERIFY "):
             # FILE_VERIFY actual_file expected_file
             parts = lines[i][12:].strip().split()
             if len(parts) != 2:
-                print(f"\n⚠️ Invalid FILE_VERIFY syntax: {lines[i]}")
+                print(f"\nInvalid FILE_VERIFY syntax: {lines[i]}")
                 print("   Expected: FILE_VERIFY <actual_file> <expected_file>")
                 test_passed = False
                 i += 1
@@ -125,10 +125,10 @@ def run_test_file(test_path, exec_path="../Filesystem"):
                 # Clean up - delete the actual file after verification
                 os.remove(actual_file)
             except FileNotFoundError as e:
-                print(f"\n⚠️ File not found: {e.filename}")
+                print(f"\nFile not found: {e.filename}")
                 test_passed = False
             except Exception as e:
-                print(f"\n⚠️ Error reading files: {e}")
+                print(f"\nError reading files: {e}")
                 test_passed = False
 
         else:
