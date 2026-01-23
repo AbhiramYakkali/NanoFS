@@ -276,6 +276,16 @@ char* get_last_of_path(char* path) {
     return path;
 }
 
+char* get_all_except_last_of_path(char* path) {
+    char* last_slash = strrchr(path, '/');
+    if (last_slash != NULL) {
+        *last_slash = '\0';
+        return path;
+    }
+
+    return "";
+}
+
 // Follows a path (dir/dir/dir/...) to find the inode number of the file/directory at the end
 // Returns 0 if reach the end, 1 if reach the directory before the final file, -1 otherwise
 int get_inode_number_of_path(const char path[249], const int expected_file_type, int* result) {
@@ -317,18 +327,20 @@ int get_inode_number_of_path(const char path[249], const int expected_file_type,
     return 0;
 }
 
-int change_directory(char command[MAX_ARGS][MAX_ARG_LEN + 1]) {
+int change_directory(char directory[MAX_ARG_LEN + 1], const bool print) {
     int new_directory;
-    const auto result = get_inode_number_of_path(command[1], _DIRECTORY, &new_directory);
+    const auto result = get_inode_number_of_path(directory, _DIRECTORY, &new_directory);
 
     if (result != 0) {
-        printf("Directory %s does not exist in the current directory\n", command[1]);
+        // get_inode_number_of_path already prints an error message unless result == 1
+        if (result == 1) printf("Directory %s does not exist\n", directory);
+
         return -1;
     }
 
     current_working_directory = new_directory;
 
-    if (verbose) printf("Switched to directory %s, inode %d\n", command[1], current_working_directory);
+    if (print) printf("Switched to directory %s, inode %d\n", directory, current_working_directory);
 
     return 0;
 }
@@ -370,7 +382,7 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
         fwrite(&bitmap, sizeof(bitmap), 1, disk);
 
         // Fill the rest of the space with empty data blocks
-        const uint8_t empty_data_block[DEFAULT_BLOCK_SIZE] = {0};
+        constexpr uint8_t empty_data_block[DEFAULT_BLOCK_SIZE] = {0};
         for (int i = 0; i < block_count; i++) {
             fwrite(empty_data_block, sizeof(empty_data_block), 1, disk);
         }
@@ -672,13 +684,22 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
 
     //Remove a file
     if (strcmp(command[0], "rm") == 0) {
+        // Resolve path: Switch to the specified directory, perform remove, then swap back to CWD
+        const auto cwd = current_working_directory;
+        const auto filename = get_last_of_path(command[1]);
+        const auto dir_path = get_all_except_last_of_path(command[1]);
+
+        if (strcmp(dir_path, "") != 0) {
+            if (change_directory(dir_path, false) != 0) return -1;
+        }
+
         const auto num_dentries = get_num_dentries(current_working_directory);
         struct dentry dentries[num_dentries];
         get_dentries(current_working_directory, &dentries[0]);
 
-        const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, command[1], _FILE);
+        const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, _FILE);
         if (file_dentry_number == -1) {
-            printf("File %s does not exist in the current directory\n", command[1]);
+            printf("File %s does not exist in the current directory\n", filename);
             return 1;
         }
 
@@ -715,14 +736,20 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
         cwd_inode.file_size -= sizeof(struct dentry);
         write_inode(current_working_directory, &cwd_inode);
 
-        if (verbose) printf("Removed file %s, inode %d\n", command[1], inode_number);
+        if (verbose) {
+            if (strcmp(dir_path, "") != 0) printf("Removed file %s/%s, inode %d\n", dir_path, filename, inode_number);
+            else printf("Removed file %s, inode %d\n", command[1], inode_number);
+        }
+
+        // Swap back to the old cwd (if path resolution was used)
+        current_working_directory = cwd;
 
         return 0;
     }
 
     // Change cwd to specified directory
     if (strcmp(command[0], "cd") == 0) {
-        return change_directory(command);
+        return change_directory(command[1], verbose);
     }
 
     if (strcmp(command[0], "exit") == 0) {

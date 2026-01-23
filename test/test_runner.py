@@ -68,7 +68,7 @@ def run_test_file(test_path, exec_path="../Filesystem"):
             if i < len(lines) and lines[i].startswith("EXPECT"):
                 if lines[i] == "EXPECT":
                     i += 1
-                    while i < len(lines) and not lines[i].startswith("SEND "):
+                    while i < len(lines) and not lines[i].startswith("SEND ") and not lines[i].startswith("FILE_VERIFY"):
                         expected_lines.append(lines[i])
                         i += 1
                 else:
@@ -79,14 +79,57 @@ def run_test_file(test_path, exec_path="../Filesystem"):
                 # Read actual output
                 actual_output = read_until_prompt(proc)
 
-                # Compare
-                if normalize_output(expected_output) != normalize_output(actual_output):
+                # Compare normalized versions
+                expected_normalized = normalize_output(expected_output)
+                actual_normalized = normalize_output(actual_output)
+
+                if expected_normalized != actual_normalized:
                     print(f"\nOutput mismatch for command: {cmd.strip()}")
                     print("Expected vs Actual:")
-                    print_diff(expected_output.strip(), actual_output.strip())
+                    # Show the normalized versions in the diff
+                    print_diff("\n".join(expected_normalized), "\n".join(actual_normalized))
                     test_passed = False
             else:
-                print("⚠️ Missing EXPECT after SEND")
+                print("Missing EXPECT after SEND")
+
+        elif lines[i].startswith("FILE_VERIFY "):
+            # FILE_VERIFY actual_file expected_file
+            parts = lines[i][12:].strip().split()
+            if len(parts) != 2:
+                print(f"\nInvalid FILE_VERIFY syntax: {lines[i]}")
+                print("   Expected: FILE_VERIFY <actual_file> <expected_file>")
+                test_passed = False
+                i += 1
+                continue
+
+            actual_file = parts[0]
+            expected_file = parts[1]
+            i += 1
+
+            # Read both files and compare
+            try:
+                with open(actual_file, 'r') as f:
+                    actual_content = f.read()
+
+                with open(expected_file, 'r') as f:
+                    expected_content = f.read()
+
+                # Compare
+                if expected_content != actual_content:
+                    print(f"\nFile content mismatch for: {actual_file}")
+                    print(f"Expected content from: {expected_file}")
+                    print("Expected vs Actual:")
+                    print_diff(expected_content, actual_content)
+                    test_passed = False
+
+                # Clean up - delete the actual file after verification
+                os.remove(actual_file)
+            except FileNotFoundError as e:
+                print(f"\nFile not found: {e.filename}")
+                test_passed = False
+            except Exception as e:
+                print(f"\nError reading files: {e}")
+                test_passed = False
 
         else:
             i += 1
