@@ -640,7 +640,7 @@ int run_command_mkdir(char* dir_path) {
     return 0;
 }
 
-int change_directory(char directory[MAX_ARG_LEN + 1], const bool print) {
+int run_command_cd(char directory[MAX_ARG_LEN + 1], const bool print) {
     int new_directory;
     const auto result = get_inode_number_of_path(directory, _DIRECTORY, &new_directory);
 
@@ -785,7 +785,7 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
 
     // Change cwd to specified directory
     if (strcmp(command[0], "cd") == 0) {
-        return change_directory(command[1], verbose);
+        return run_command_cd(command[1], verbose);
     }
 
     if (strcmp(command[0], "exit") == 0) {
