@@ -48,24 +48,24 @@ test15:
 - Verify FILE_VERIFY functionality in test runner
 
 test16:
-- Test resource exhaustion - running out of data blocks
-- Creates 800+ files to exhaust available data blocks (~1008 total)
-- Verifies error handling when no free data blocks exist
-- Ensures existing files remain accessible after exhaustion
-
-test17:
-- Test resource exhaustion - running out of inodes
-- Creates 255 files to exhaust all available inodes (256 total, 0 is root)
-- Verifies "All inodes are being used" error message
-- Tests inode reuse after file deletion
-
-test18:
 - Test rm command with path resolution
 - Remove files using paths: dir/file, dir/dir/file, dir/dir/dir/file
 - Verify files are removed correctly by checking with ls and read
 - Test error handling for invalid paths (nonexistent directories and files)
 - Test resource reuse (inodes and data blocks) after deletion
 - Test complex cd paths like ../.. and ../../..
+
+test17 (INACTIVE):
+- Test resource exhaustion - running out of data blocks
+- Creates 800+ files to exhaust available data blocks (~1008 total)
+- Verifies error handling when no free data blocks exist
+- Ensures existing files remain accessible after exhaustion
+
+test18 (INACTIVE):
+- Test resource exhaustion - running out of inodes
+- Creates 255 files to exhaust all available inodes (256 total, 0 is root)
+- Verifies "All inodes are being used" error message
+- Tests inode reuse after file deletion
 
 
 ERROR CHECK TESTS

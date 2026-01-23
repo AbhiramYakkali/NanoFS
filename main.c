@@ -332,7 +332,9 @@ int change_directory(char directory[MAX_ARG_LEN + 1], const bool print) {
     const auto result = get_inode_number_of_path(directory, _DIRECTORY, &new_directory);
 
     if (result != 0) {
-        // get_inode_number_of_path already prints an error message
+        // get_inode_number_of_path already prints an error message unless result == 1
+        if (result == 1) printf("Directory %s does not exist\n", directory);
+
         return -1;
     }
 
@@ -734,7 +736,10 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
         cwd_inode.file_size -= sizeof(struct dentry);
         write_inode(current_working_directory, &cwd_inode);
 
-        if (verbose) printf("Removed file %s/%s, inode %d\n", command[1], filename, inode_number);
+        if (verbose) {
+            if (strcmp(dir_path, "") != 0) printf("Removed file %s/%s, inode %d\n", dir_path, filename, inode_number);
+            else printf("Removed file %s, inode %d\n", command[1], inode_number);
+        }
 
         // Swap back to the old cwd (if path resolution was used)
         current_working_directory = cwd;

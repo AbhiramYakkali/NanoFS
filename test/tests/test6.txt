@@ -8,4 +8,4 @@ Created new file dir, inode 1, data block 1
 
 SEND cd dir
 EXPECT
-Directory dir does not exist in the current directory
+Directory dir does not exist
