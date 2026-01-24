@@ -14,11 +14,12 @@
 #define DEFAULT_INODE_COUNT (DEFAULT_SIZE / 4096) // 1 inode / 4KB (256 inodes default)
 #define DEFAULT_DISK_NAME "nanofs_disk"
 
-#define INODE_TABLE_START sizeof(struct superblock) // 0x14 by default
-#define FREE_BITMAP_START (INODE_TABLE_START + DEFAULT_INODE_COUNT * sizeof(struct inode)) // 0x3c14 by default
-#define DATA_START (FREE_BITMAP_START + calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT) / 8) //0x3c92 by defualt
-
-#define DENTRIES_PER_BLOCK (DEFAULT_BLOCK_SIZE / sizeof(struct dentry)) // Default: 4
+/* DEFAULTS:
+ * INODE_TABLE_START:  0x14
+ * FREE_BITMAP_START:  0x3c14
+ * DATA_START:         0x3c92
+ * DENTRIES_PER_BLOCK: 4
+ */
 
 #define MAX_ARGS 5
 #define MAX_ARG_LEN 252
@@ -37,9 +38,23 @@ int get_superblock(const char* disk, struct superblock* destination) {
 }
 
 int calculate_block_count(const int total_size, const int block_size, const int inode_count) {
-    const double data_size = (double) total_size - sizeof(struct superblock) - (double) inode_count * sizeof(struct inode);
+    const auto data_size = total_size - sizeof(struct superblock) - inode_count * sizeof(struct inode);
     // Divide by block_size + 0.125 because every data block needs a corresponding bit in the bitmap
-    return floor(data_size / (block_size + 0.125));
+    return floor((double) data_size / (block_size + 0.125));
+}
+
+// Calculates the disk structure based on the current superblock
+void calculate_disk_structure() {
+    constexpr uint32_t inode_table_start = sizeof(struct superblock);
+    const uint32_t free_bitmap_start = inode_table_start +
+        current_disk_superblock.inode_count * current_disk_superblock.inode_size;
+    const uint32_t data_start = free_bitmap_start + current_disk_superblock.block_count / 8;
+    const uint8_t dentries_per_block = current_disk_superblock.block_size / sizeof(struct dentry);
+
+    INODE_TABLE_START = inode_table_start;
+    FREE_BITMAP_START = free_bitmap_start;
+    DATA_START = data_start;
+    DENTRIES_PER_BLOCK = dentries_per_block;
 }
 
 int write_data_to_block(const int block_number, const void *data, const size_t data_size) {
@@ -116,7 +131,7 @@ int set_data_block_status(const int block_number, const int status) {
 // Returns -1 if no free data blocks exist
 int find_next_free_data_block() {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
-    constexpr int location = FREE_BITMAP_START;
+    const int location = FREE_BITMAP_START;
     const int num_bytes_to_check = current_disk_superblock.block_size / 8;
     constexpr uint8_t mask = 1 << 7;
 
@@ -327,6 +342,7 @@ int run_command_init(const char* disk_name) {
 
     const struct superblock sb = {DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, block_count, sizeof(struct inode), DEFAULT_INODE_COUNT};
     current_disk_superblock = sb;
+    calculate_disk_structure();
 
     FILE *disk = fopen(disk_name, "wb");
     if (disk == NULL) {
@@ -372,7 +388,6 @@ int run_command_init(const char* disk_name) {
     write_data_to_block(0, entries, sizeof(entries));
     set_data_block_status(0, 1);
 
-    // Reset current working directory to prevent softlocking
     current_working_directory = 0;
 
     if (verbose) printf("Initialized NanoFS system: %s\n", disk_name);
@@ -474,7 +489,7 @@ int run_command_read(char* file_path) {
     const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number);
 
     if (result != 0) {
-        printf("File %s does not exist in the current directory\n", file_path);
+        if (result == 1) printf("File %s does not exist in the current directory\n", file_path);
         return 1;
     }
 
@@ -800,8 +815,10 @@ int main(const int argc, char const *argv[]) {
     const auto disk_name = DEFAULT_DISK_NAME;
     if (verbose) printf("Loading superblock for disk %s...\n", disk_name);
     const auto result = get_superblock(disk_name, &current_disk_superblock);
-    if (result == -1 && verbose) {
+    if (result == -1) {
         printf("Disk %s does not currently exist, create it using 'init' first.\n", disk_name);
+    } else {
+        calculate_disk_structure();
     }
 
     //constexpr char test_args[MAX_ARGS][MAX_ARG_LEN] = {"write", "hello", "TEST!"};

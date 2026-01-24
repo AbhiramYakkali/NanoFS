@@ -38,4 +38,7 @@ struct dentry {
 
 struct superblock current_disk_superblock;
 
+uint32_t INODE_TABLE_START, FREE_BITMAP_START, DATA_START;
+uint8_t DENTRIES_PER_BLOCK;
+
 #endif //SYSTEM_STRUCTURES_H
