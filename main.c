@@ -60,9 +60,9 @@ void calculate_disk_structure() {
 int write_data_to_block(const int block_number, const void *data, const size_t data_size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
 
-    const int location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fwrite(data, 1, data_size, disk);
     fclose(disk);
     return 0;
@@ -70,9 +70,9 @@ int write_data_to_block(const int block_number, const void *data, const size_t d
 
 int read_data_from_block(const int block_number, void* buffer, const size_t size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
-    const int location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fread(buffer, 1, size, disk);
     fclose(disk);
 
@@ -81,9 +81,9 @@ int read_data_from_block(const int block_number, void* buffer, const size_t size
 
 int read_inode(const int inode_number, struct inode* destination) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
-    const int location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+    const uint32_t location = INODE_TABLE_START + inode_number * sizeof(struct inode);
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fread(destination, 1, sizeof(struct inode), disk);
     fclose(disk);
 
@@ -92,9 +92,9 @@ int read_inode(const int inode_number, struct inode* destination) {
 
 int write_inode(const int inode_number, const struct inode* inode) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-    const int location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+    const uint32_t location = INODE_TABLE_START + inode_number * sizeof(struct inode);
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fwrite(inode, 1, sizeof(struct inode), disk);
     fclose(disk);
 
@@ -108,10 +108,10 @@ int set_data_block_status(const int block_number, const int status) {
     const uint8_t mask = 128 >> bit;
 
     FILE *disk = fopen(DEFAULT_DISK_NAME, "r+b");
-    const int location = FREE_BITMAP_START + byte;
+    const auto location = FREE_BITMAP_START + byte;
     uint8_t current_bitmap_byte;
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fread(&current_bitmap_byte, 1, 1, disk);
 
     if (status == DATA_BLOCK_USED) {
@@ -120,7 +120,7 @@ int set_data_block_status(const int block_number, const int status) {
         current_bitmap_byte &= ~mask;
     }
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fwrite(&current_bitmap_byte, 1, 1, disk);
     fclose(disk);
 
@@ -131,11 +131,11 @@ int set_data_block_status(const int block_number, const int status) {
 // Returns -1 if no free data blocks exist
 int find_next_free_data_block() {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
-    const int location = FREE_BITMAP_START;
+    const auto location = FREE_BITMAP_START;
     const int num_bytes_to_check = current_disk_superblock.block_size / 8;
     constexpr uint8_t mask = 1 << 7;
 
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     uint8_t current_bitmap_byte;
     for (int byte = 0; byte < num_bytes_to_check; byte++) {
         fread(&current_bitmap_byte, 1, 1, disk);
@@ -192,10 +192,11 @@ int create_dentry(const struct dentry* dentry, const int directory) {
     dir_inode.file_size += sizeof(struct dentry);
 
     const int block_number = dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
-    const int location = DATA_START + block_number * DEFAULT_BLOCK_SIZE + (num_dentries % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
+    const uint32_t location = DATA_START + block_number * current_disk_superblock.block_size +
+        (num_dentries % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
 
     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-    fseek(disk, location, SEEK_SET);
+    fseek(disk, (long) location, SEEK_SET);
     fwrite(dentry, 1, sizeof(struct dentry), disk);
     fclose(disk);
 
@@ -573,7 +574,7 @@ int run_command_save(char* input_file_path, char* file_path) {
     do {
         bytes_read = (int) fread(data, 1, DEFAULT_BLOCK_SIZE, input_file);
 
-        auto block_number = inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE];
+        int block_number = inode.block_pointers[total_bytes_read / DEFAULT_BLOCK_SIZE];
         if (block_number == 0) {
             block_number = find_next_free_data_block();
 
@@ -716,10 +717,10 @@ int run_command_rm(char* file_path) {
     // Do this by overwriting corresponding dentry with the last dentry in the directory
     // Only needed if the dentry to be removed is NOT the last dentry in the list
     if (file_dentry_number != num_dentries - 1) {
-        const int location = DATA_START + cwd_inode.block_pointers[(file_dentry_number / DENTRIES_PER_BLOCK)] * DEFAULT_BLOCK_SIZE + (file_dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
+        const uint32_t location = DATA_START + cwd_inode.block_pointers[(file_dentry_number / DENTRIES_PER_BLOCK)] * DEFAULT_BLOCK_SIZE + (file_dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
 
         FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-        fseek(disk, location, SEEK_SET);
+        fseek(disk, (long) location, SEEK_SET);
         fwrite(&dentries[num_dentries - 1], 1, sizeof(struct dentry), disk);
         fclose(disk);
     }
