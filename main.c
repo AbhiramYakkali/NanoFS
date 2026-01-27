@@ -531,12 +531,17 @@ int run_command_open(char* file_path) {
     int bytes_read = 0;
     char data[data_size];
 
+    if (verbose) printf("Copying %s, inode %d, into real filesystem\n", file_path, inode_number);
+
     while (bytes_read < data_size) {
         const auto bytes_to_read = __min(data_size - bytes_read, DEFAULT_BLOCK_SIZE);
 
-        read_data_from_block(inode.block_pointers[bytes_read / superblock.block_size], &data[bytes_read], bytes_to_read);
+        const auto block_number = inode.block_pointers[bytes_read / superblock.block_size];
+        read_data_from_block(block_number, &data[bytes_read], bytes_to_read);
 
         bytes_read += bytes_to_read;
+
+        if (verbose) printf("Read %d bytes from data block %d\n", bytes_to_read, block_number);
     }
 
     char output_file_name[strlen(file_path)];
@@ -547,7 +552,7 @@ int run_command_open(char* file_path) {
     fwrite(data, 1, data_size, output_file);
     fclose(output_file);
 
-    if (verbose) printf("Copied %d bytes from %s to %s\n", bytes_read, file_path, output_file_name);
+    if (verbose) printf("Finished copying. Wrote %d bytes total to %s\n", bytes_read, output_file_name);
 
     return 0;
 }
