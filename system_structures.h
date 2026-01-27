@@ -25,7 +25,7 @@ struct superblock {
 };
 
 struct inode {
-    uint16_t file_size; // The number of bytes the file is using on disk
+    uint16_t file_size; // In bytes
     uint16_t block_pointers[12]; // 0 indicates an unused pointer
     uint8_t is_used; // 0 = not in use
 };
@@ -36,7 +36,7 @@ struct dentry {
     char name[253];
 };
 
-struct superblock current_disk_superblock;
+struct superblock superblock;
 
 uint32_t INODE_TABLE_START, FREE_BITMAP_START, DATA_START;
 uint8_t DENTRIES_PER_BLOCK;
