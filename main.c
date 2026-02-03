@@ -874,6 +874,6 @@ int main(const int argc, char const *argv[]) {
             token = strtok(nullptr, " ");
         }
 
-        run_fs_command(arg_count, args, disk_name);
+        if (arg_count != 0) run_fs_command(arg_count, args, disk_name);
     }
 }
