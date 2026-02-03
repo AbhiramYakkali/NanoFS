@@ -263,9 +263,16 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
         fclose(disk);
     }
 
-    // Update size of cwd_inode
-    // TODO: Also set last data block as free if the last dentry was just copied out of it
     dir_inode.file_size -= sizeof(struct dentry);
+    // Set last data block as free if the last dentry was just copied out of it
+    if (num_dentries % DENTRIES_PER_BLOCK == 1) {
+        const auto block_number = dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
+        set_data_block_status(block_number, DATA_BLOCK_FREE);
+        dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = 0;
+
+        if (verbose) printf("Data block %d for directory %d is now free\n", block_number, dir_inode_number);
+    }
+
     write_inode(dir_inode_number, &dir_inode);
 }
 

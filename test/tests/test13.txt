@@ -41,6 +41,7 @@ EXPECT
 
 SEND rm file2
 EXPECT
+Data block 5 for directory 1 is now free
 Removed file file2, inode 3
 
 SEND ls

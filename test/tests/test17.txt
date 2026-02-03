@@ -78,6 +78,16 @@ EXPECT
 Allocated new data block 9 for directory, inode 0
 Created new file file6, inode 7, data block 8
 
+SEND rm file6
+EXPECT
+Data block 9 for directory 0 is now free
+Removed file file6, inode 7
+
+SEND create file6
+EXPECT
+Allocated new data block 9 for directory, inode 0
+Created new file file6, inode 7, data block 8
+
 SEND ls
 EXPECT
 . .. file file1 file2 file3 file4 file5 file6
