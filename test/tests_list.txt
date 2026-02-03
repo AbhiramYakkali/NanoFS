@@ -55,6 +55,12 @@ test16:
 - Test resource reuse (inodes and data blocks) after deletion
 - Test complex cd paths like ../.. and ../../..
 
+test17:
+- Test using rm command to remove directories
+- Verify that all files are removed correctly
+- Verify that inodes and data blocks are reused
+
+
 test17 (INACTIVE):
 - Test resource exhaustion - running out of data blocks
 - Creates 800+ files to exhaust available data blocks (~1008 total)
