@@ -767,26 +767,6 @@ int run_command_rm(char* file_path) {
     const auto inode_number = dentries[file_dentry_number].inode_number;
     remove_element(inode_number);
 
-    // struct inode cwd_inode;
-    // read_inode(dir_inode, &cwd_inode);
-    //
-    // // Remove corresponding dentry from this directory
-    // // Do this by overwriting corresponding dentry with the last dentry in the directory
-    // // Only needed if the dentry to be removed is NOT the last dentry in the list
-    // if (file_dentry_number != num_dentries - 1) {
-    //     const uint32_t location = DATA_START + cwd_inode.block_pointers[(file_dentry_number / DENTRIES_PER_BLOCK)] *
-    //         superblock.block_size + (file_dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
-    //
-    //     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-    //     fseek(disk, (long) location, SEEK_SET);
-    //     fwrite(&dentries[num_dentries - 1], 1, sizeof(struct dentry), disk);
-    //     fclose(disk);
-    // }
-    //
-    // // Update size of cwd_inode
-    // // TODO: Also set last data block as free if the last dentry was just copied out of it
-    // cwd_inode.file_size -= sizeof(struct dentry);
-    // write_inode(dir_inode, &cwd_inode);
     remove_dentry(dir_inode, file_dentry_number);
 
     if (verbose) {
@@ -805,7 +785,6 @@ void remove_directory(const int inode_number) {
 
     // Start at dentry 2 to skip . and ..
     for (int i = 2; i < num_dentries; i++) {
-        // printf("Removing dentry %d\n", i);
         if (dentries[i].file_type == _DIRECTORY) {
             remove_directory(dentries[i].inode_number);
         } else {
