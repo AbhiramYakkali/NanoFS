@@ -37,6 +37,14 @@ SEND create dir1/dir2/file4
 EXPECT
 Created new file dir1/dir2/file4, inode 7, data block 8
 
+SEND save large_input.txt dir1/dir2/file3
+EXPECT
+Copying from large_input.txt to dir1/dir2/file3, inode 6
+Wrote 1024 bytes to data block 7
+Wrote 1024 bytes to data block 9
+Wrote 805 bytes to data block 10
+Finished copying. Wrote 2853 bytes total
+
 SEND rm dir1
 EXPECT
 File dir1 does not exist in the current directory
@@ -73,6 +81,19 @@ SEND create file5
 EXPECT
 Created new file file5, inode 6, data block 7
 
+SEND read file5
+EXPECT
+Read 0 bytes from file file5, inode 6, data block 7
+
+SEND write file5 TestMessage!
+EXPECT
+Wrote 12 bytes to file file5, inode 6, data block 7
+
+SEND read file5
+EXPECT
+TestMessage!
+Read 12 bytes from file file5, inode 6, data block 7
+
 SEND create file6
 EXPECT
 Allocated new data block 9 for directory, inode 0
@@ -88,6 +109,10 @@ EXPECT
 Allocated new data block 9 for directory, inode 0
 Created new file file6, inode 7, data block 8
 
+SEND create file7
+EXPECT
+Created new file file7, inode 8, data block 10
+
 SEND ls
 EXPECT
-. .. file file1 file2 file3 file4 file5 file6
+. .. file file1 file2 file3 file4 file5 file6 file7
