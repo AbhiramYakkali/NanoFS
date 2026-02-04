@@ -1,0 +1,118 @@
+# Test rm command to remove directories
+
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND mkdir dir1
+EXPECT
+Created new directory dir1, inode 1, data block 1
+
+SEND create file
+EXPECT
+Created new file file, inode 2, data block 2
+
+SEND ls
+EXPECT
+. .. dir1 file
+
+SEND create dir1/file1
+EXPECT
+Created new file dir1/file1, inode 3, data block 3
+
+SEND create dir1/file2
+EXPECT
+Created new file dir1/file2, inode 4, data block 4
+
+SEND mkdir dir1/dir2
+EXPECT
+Allocated new data block 6 for directory, inode 1
+Created new directory dir1/dir2, inode 5, data block 5
+
+SEND create dir1/dir2/file3
+EXPECT
+Created new file dir1/dir2/file3, inode 6, data block 7
+
+SEND create dir1/dir2/file4
+EXPECT
+Created new file dir1/dir2/file4, inode 7, data block 8
+
+SEND save large_input.txt dir1/dir2/file3
+EXPECT
+Copying from large_input.txt to dir1/dir2/file3, inode 6
+Wrote 1024 bytes to data block 7
+Wrote 1024 bytes to data block 9
+Wrote 805 bytes to data block 10
+Finished copying. Wrote 2853 bytes total
+
+SEND rm dir1
+EXPECT
+File dir1 does not exist in the current directory
+
+SEND rmdir dir1
+EXPECT
+
+SEND ls
+EXPECT
+. .. file
+
+SEND cd dir1
+EXPECT
+Directory dir1 does not exist
+
+SEND create file1
+EXPECT
+Created new file file1, inode 1, data block 1
+
+SEND create file2
+EXPECT
+Allocated new data block 4 for directory, inode 0
+Created new file file2, inode 3, data block 3
+
+SEND create file3
+EXPECT
+Created new file file3, inode 4, data block 5
+
+SEND create file4
+EXPECT
+Created new file file4, inode 5, data block 6
+
+SEND create file5
+EXPECT
+Created new file file5, inode 6, data block 7
+
+SEND read file5
+EXPECT
+Read 0 bytes from file file5, inode 6, data block 7
+
+SEND write file5 TestMessage!
+EXPECT
+Wrote 12 bytes to file file5, inode 6, data block 7
+
+SEND read file5
+EXPECT
+TestMessage!
+Read 12 bytes from file file5, inode 6, data block 7
+
+SEND create file6
+EXPECT
+Allocated new data block 9 for directory, inode 0
+Created new file file6, inode 7, data block 8
+
+SEND rm file6
+EXPECT
+Data block 9 for directory 0 is now free
+Removed file file6, inode 7
+
+SEND create file6
+EXPECT
+Allocated new data block 9 for directory, inode 0
+Created new file file6, inode 7, data block 8
+
+SEND create file7
+EXPECT
+Created new file file7, inode 8, data block 10
+
+SEND ls
+EXPECT
+. .. file file1 file2 file3 file4 file5 file6 file7
