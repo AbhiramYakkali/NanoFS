@@ -5,8 +5,8 @@
 #ifndef SYSTEM_STRUCTURES_H
 #define SYSTEM_STRUCTURES_H
 
-#define _FILE 0
-#define _DIRECTORY 1
+#define TYPE_FILE 0
+#define TYPE_DIRECTORY 1
 
 
 #define DATA_BLOCK_FREE 0

@@ -278,21 +278,6 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
     write_inode(dir_inode_number, &dir_inode);
 }
 
-// Checks if a file with the given name exists in the given directory
-bool file_exists_in_directory(const int directory_number, const char* filename, const int expected_file_type) {
-    const int num_dentries = get_num_dentries(directory_number);
-    struct dentry dentries[num_dentries];
-    get_dentries(current_working_directory, &dentries[0]);
-
-    for (int i = 0; i < num_dentries; i++) {
-        if (strcmp(dentries[i].name, filename) == 0 && dentries[i].file_type == expected_file_type) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 // Returns the number corresponding to the index of the requested file in a provided list of dentries
 // Returns -1 if the file doesn't exist in the given list of dentries
 int get_dentry_number_of_file(const struct dentry* dentries, const int num_dentries, const char* filename, const int expected_file_type) {
@@ -333,7 +318,7 @@ int get_inode_number_of_file(const int directory_number, const char* filename, c
 char* get_last_of_path(char* path) {
     char* last = strrchr(path, '/');
 
-    if (last != NULL) {
+    if (last != nullptr) {
         return last + 1;
     }
 
@@ -342,7 +327,7 @@ char* get_last_of_path(char* path) {
 
 char* get_all_except_last_of_path(char* path) {
     char* last_slash = strrchr(path, '/');
-    if (last_slash != NULL) {
+    if (last_slash != nullptr) {
         *last_slash = '\0';
         return path;
     }
@@ -360,14 +345,14 @@ int get_inode_number_of_path(const char path[249], const int expected_file_type,
     strcpy(copied_path, path);
     auto dir = strtok(copied_path, "/");
 
-    while (dir != NULL) {
+    while (dir != nullptr) {
         // Find the next directory in the path to see if we've reached the end of the path
         const auto next_dir = strtok(nullptr, "/");
-        const int current_expected_file_type = (next_dir == NULL) ? expected_file_type : _DIRECTORY;
+        const int current_expected_file_type = (next_dir == nullptr) ? expected_file_type : TYPE_DIRECTORY;
 
         const auto inode_number = get_inode_number_of_file(current_directory, dir, current_expected_file_type);
         if (inode_number == -1) {
-            if (next_dir != NULL) {
+            if (next_dir != nullptr) {
                 // One of the directories in the middle of the path does not exist
                 printf("Directory %s does not exist\n", dir);
                 return -1;
@@ -394,7 +379,7 @@ int run_command_init(const char* disk_name) {
     calculate_disk_structure();
 
     FILE *disk = fopen(disk_name, "wb");
-    if (disk == NULL) {
+    if (disk == nullptr) {
         printf("Failed to open disk: %s\n", disk_name);
         return 1;
     }
@@ -431,8 +416,8 @@ int run_command_init(const char* disk_name) {
 
     // Initialize root directory's data block
     const struct dentry entries[] = {
-        {0, _DIRECTORY, "."},
-        {0, _DIRECTORY, ".."}
+        {0, TYPE_DIRECTORY, "."},
+        {0, TYPE_DIRECTORY, ".."}
     };
     write_data_to_block(0, entries, sizeof(entries));
     set_data_block_status(0, 1);
@@ -459,7 +444,7 @@ int run_command_ls() {
 
 int run_command_create(char* file_path) {
     int inode_number_dir;
-    const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number_dir);
+    const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number_dir);
 
     // Check if a file with the same name exists in the cwd
     if (result == 0) {
@@ -488,7 +473,7 @@ int run_command_create(char* file_path) {
 
     set_data_block_status(data_block_number, DATA_BLOCK_USED);
 
-    struct dentry dentry = {inode_number, _FILE};
+    struct dentry dentry = {inode_number, TYPE_FILE};
     const char* filename = get_last_of_path(file_path);
     strcpy(dentry.name, filename);
     struct inode inode = {0};
@@ -511,7 +496,7 @@ int run_command_create(char* file_path) {
 
 int run_command_write(char* file_path, const char* content) {
     int inode_number;
-    const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number);
+    const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number);
 
     if (result != 0) {
         printf("File %s does not exist in the current directory\n", file_path);
@@ -535,7 +520,7 @@ int run_command_write(char* file_path, const char* content) {
 
 int run_command_read(char* file_path) {
     int inode_number;
-    const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number);
+    const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number);
 
     if (result != 0) {
         if (result == 1) printf("File %s does not exist in the current directory\n", file_path);
@@ -566,7 +551,7 @@ int run_command_read(char* file_path) {
 
 int run_command_open(char* file_path) {
     int inode_number;
-    const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number);
+    const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number);
 
     if (result != 0) {
         printf("File %s does not exist in the current directory\n", file_path);
@@ -608,13 +593,13 @@ int run_command_open(char* file_path) {
 int run_command_save(char* input_file_path, char* file_path) {
     FILE* input_file = fopen(input_file_path, "rb");
 
-    if (input_file == NULL) {
+    if (input_file == nullptr) {
         printf("File %s does not exist in the current real directory\n", input_file_path);
         return 1;
     }
 
     int inode_number;
-    const auto result = get_inode_number_of_path(file_path, _FILE, &inode_number);
+    const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number);
     if (result != 0) {
         printf("File %s does not exist in the current directory\n", file_path);
         return 1;
@@ -623,7 +608,7 @@ int run_command_save(char* input_file_path, char* file_path) {
     struct inode inode;
     read_inode(inode_number, &inode);
 
-    char* data[superblock.block_size];
+    char data[superblock.block_size];
 
     int bytes_read = 0;
     int total_bytes_read = 0;
@@ -663,7 +648,7 @@ int run_command_save(char* input_file_path, char* file_path) {
 
 int run_command_mkdir(char* dir_path) {
     int inode_number_dir;
-    const auto result = get_inode_number_of_path(dir_path, _DIRECTORY, &inode_number_dir);
+    const auto result = get_inode_number_of_path(dir_path, TYPE_DIRECTORY, &inode_number_dir);
 
     if (result == 0) {
         printf("Directory %s exists in the current directory\n", dir_path);
@@ -687,7 +672,7 @@ int run_command_mkdir(char* dir_path) {
     }
     set_data_block_status(data_block_number, DATA_BLOCK_USED);
 
-    struct dentry dentry = {inode_number, _DIRECTORY};
+    struct dentry dentry = {inode_number, TYPE_DIRECTORY};
     char* dir_name = get_last_of_path(dir_path);
     strcpy(dentry.name, dir_name);
     if (create_dentry(&dentry, inode_number_dir) == -1) {
@@ -698,8 +683,8 @@ int run_command_mkdir(char* dir_path) {
 
     // Default dentries for a directory
     const struct dentry entries[] = {
-        {inode_number, _DIRECTORY, "."},
-        {inode_number_dir, _DIRECTORY, ".."}
+        {inode_number, TYPE_DIRECTORY, "."},
+        {inode_number_dir, TYPE_DIRECTORY, ".."}
     };
 
     struct inode inode = {0};
@@ -719,7 +704,7 @@ int run_command_mkdir(char* dir_path) {
 
 int run_command_cd(char directory[MAX_ARG_LEN + 1], const bool print) {
     int new_directory;
-    const auto result = get_inode_number_of_path(directory, _DIRECTORY, &new_directory);
+    const auto result = get_inode_number_of_path(directory, TYPE_DIRECTORY, &new_directory);
 
     if (result != 0) {
         // get_inode_number_of_path already prints an error message unless result == 1
@@ -754,7 +739,7 @@ int run_command_rm(char* file_path) {
     int dir_inode = current_working_directory;
 
     if (strcmp(dir_path, "") != 0) {
-        const auto result = get_inode_number_of_path(dir_path, _DIRECTORY, &dir_inode);
+        const auto result = get_inode_number_of_path(dir_path, TYPE_DIRECTORY, &dir_inode);
 
         if (result != 0) {
             if (result == 1) printf("File %s does not exist in the current directory\n", file_path);
@@ -766,7 +751,7 @@ int run_command_rm(char* file_path) {
     struct dentry dentries[num_dentries];
     get_dentries(dir_inode, &dentries[0]);
 
-    const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, _FILE);
+    const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, TYPE_FILE);
     if (file_dentry_number == -1) {
         printf("File %s does not exist in the current directory\n", filename);
         return 1;
@@ -794,7 +779,7 @@ void remove_directory(const int inode_number) {
 
     // Start at dentry 2 to skip . and ..
     for (int i = 2; i < num_dentries; i++) {
-        if (dentries[i].file_type == _DIRECTORY) {
+        if (dentries[i].file_type == TYPE_DIRECTORY) {
             remove_directory(dentries[i].inode_number);
         } else {
             remove_element(dentries[i].inode_number);
@@ -810,7 +795,7 @@ int run_command_rmdir(char* path) {
     int dir_inode = current_working_directory;
 
     if (strcmp(dir_path, "") != 0) {
-        const auto result = get_inode_number_of_path(dir_path, _DIRECTORY, &dir_inode);
+        const auto result = get_inode_number_of_path(dir_path, TYPE_DIRECTORY, &dir_inode);
 
         if (result != 0) {
             if (result == 1) printf("Directory %s does not exist in the current directory\n", dir_path);
@@ -822,7 +807,7 @@ int run_command_rmdir(char* path) {
     struct dentry dentries[num_dentries];
     get_dentries(dir_inode, &dentries[0]);
 
-    const auto dentry_number = get_dentry_number_of_file(dentries, num_dentries, path, _DIRECTORY);
+    const auto dentry_number = get_dentry_number_of_file(dentries, num_dentries, dir_name, TYPE_DIRECTORY);
     if (dentry_number == -1) {
         printf("Directory %s does not exist in the current directory\n", path);
         return 1;
@@ -920,10 +905,6 @@ int main(const int argc, char const *argv[]) {
         calculate_disk_structure();
     }
 
-    //constexpr char test_args[MAX_ARGS][MAX_ARG_LEN] = {"write", "hello", "TEST!"};
-    //run_fs_command(3, test_args, DEFAULT_DISK_NAME);
-    //return 0;
-
     while (true) {
         printf("nanofs/> ");
         fflush(stdout);
@@ -939,7 +920,7 @@ int main(const int argc, char const *argv[]) {
         int arg_count = 0;
         const char *token = strtok(input, " ");
 
-        while (token != NULL) {
+        while (token != nullptr) {
             if (arg_count == 5) {
                 printf("Too many arguments\n");
                 break;
