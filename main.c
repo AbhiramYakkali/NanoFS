@@ -6,6 +6,8 @@
 
 #include "system_structures.h"
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 // DISK STRUCTURE
 // Superblock -> inodes -> free space bitmap -> data blocks
 
@@ -542,7 +544,7 @@ int run_command_read(char* file_path) {
 
     struct inode inode;
     read_inode(inode_number, &inode);
-    const auto data_size = __min(inode.file_size, superblock.block_size);
+    const auto data_size = MIN(inode.file_size, superblock.block_size);
 
     if (data_size == 0) {
         if (verbose) printf("\nRead 0 bytes from file %s, inode %d, data block %d\n",
@@ -580,7 +582,7 @@ int run_command_open(char* file_path) {
     if (verbose) printf("Copying %s, inode %d, into real filesystem\n", file_path, inode_number);
 
     while (bytes_read < data_size) {
-        const auto bytes_to_read = __min(data_size - bytes_read, DEFAULT_BLOCK_SIZE);
+        const auto bytes_to_read = MIN(data_size - bytes_read, DEFAULT_BLOCK_SIZE);
 
         const auto block_number = inode.block_pointers[bytes_read / superblock.block_size];
         read_data_from_block(block_number, &data[bytes_read], bytes_to_read);

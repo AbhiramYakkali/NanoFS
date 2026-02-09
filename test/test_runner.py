@@ -3,6 +3,38 @@ import os
 import shlex
 import time
 import difflib
+import sys
+import re
+import platform
+
+def is_windows():
+    """Check if running on Windows (not WSL)"""
+    return platform.system() == "Windows"
+
+def is_wsl():
+    """Check if running in WSL"""
+    try:
+        with open('/proc/version', 'r') as f:
+            return 'microsoft' in f.read().lower()
+    except:
+        return False
+
+def is_valgrind_available():
+    """Check if valgrind is available on the system"""
+    if is_windows() and not is_wsl():
+        # On native Windows, valgrind is not available
+        return False
+
+    try:
+        result = subprocess.run(
+            ["valgrind", "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return False
 
 def print_diff(expected, actual):
     diff = difflib.ndiff(expected.splitlines(), actual.splitlines())
@@ -36,15 +68,82 @@ def read_until_prompt(proc, prompt='nanofs/>'):
     lines.pop()
     return "\n".join(lines).strip()
 
-def run_test_file(test_path, exec_path="../Filesystem"):
+def parse_valgrind_output(valgrind_log):
+    """Parse valgrind output to detect memory issues"""
+    issues = []
+
+    try:
+        with open(valgrind_log, 'r') as f:
+            content = f.read()
+
+        # Check for memory leaks
+        leak_match = re.search(r'definitely lost: ([\d,]+) bytes', content)
+        if leak_match:
+            leaked = leak_match.group(1).replace(',', '')
+            if int(leaked) > 0:
+                issues.append(f"Memory leak: {leak_match.group(1)} bytes definitely lost")
+
+        # Check for invalid reads/writes
+        invalid_read = re.search(r'Invalid read of size \d+', content)
+        if invalid_read:
+            issues.append(f"Invalid memory read detected")
+
+        invalid_write = re.search(r'Invalid write of size \d+', content)
+        if invalid_write:
+            issues.append(f"Invalid memory write detected")
+
+        # Check for use of uninitialized values
+        uninit = re.search(r'Conditional jump or move depends on uninitialised value', content)
+        if uninit:
+            issues.append(f"Use of uninitialized value detected")
+
+        # Check for general error summary
+        error_match = re.search(r'ERROR SUMMARY: (\d+) errors', content)
+        if error_match and int(error_match.group(1)) > 0:
+            if not issues:  # Only add if we haven't already detected specific issues
+                issues.append(f"{error_match.group(1)} error(s) detected by valgrind")
+
+    except FileNotFoundError:
+        issues.append("Valgrind log file not found")
+    except Exception as e:
+        issues.append(f"Error parsing valgrind output: {e}")
+
+    return issues
+
+def run_test_file(test_path, exec_path="../Filesystem", use_valgrind=False):
     test_passed = True
+    valgrind_issues = []
+
+    # Adjust executable path for Windows
+    if is_windows() and not exec_path.endswith('.exe'):
+        exec_path += '.exe'
 
     with open(test_path, 'r') as f:
         lines = [line.rstrip() for line in f if line.strip() and not line.strip().startswith("#")]
 
+    # Build command
+    if use_valgrind:
+        if is_windows() and not is_wsl():
+            print("\n\033[91mError: Valgrind is not available on native Windows\033[0m")
+            print("Please use WSL (Windows Subsystem for Linux) to run valgrind tests")
+            return False
+
+        valgrind_log = f"valgrind_{os.path.basename(test_path)}.log"
+        cmd = [
+            "valgrind",
+            "--leak-check=full",
+            "--show-leak-kinds=all",
+            "--track-origins=yes",
+            "--log-file=" + valgrind_log,
+            exec_path,
+            "verbose"
+        ]
+    else:
+        cmd = [exec_path, "verbose"]
+
     # Start the executable (persistent process)
     proc = subprocess.Popen(
-        [exec_path, "verbose"],
+        cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -136,25 +235,116 @@ def run_test_file(test_path, exec_path="../Filesystem"):
 
     proc.stdin.close()
     proc.terminate()
+    proc.wait()  # Wait for process to fully terminate
+
+    # Check valgrind results if enabled
+    if use_valgrind:
+        valgrind_log = f"valgrind_{os.path.basename(test_path)}.log"
+        valgrind_issues = parse_valgrind_output(valgrind_log)
+
+        if valgrind_issues:
+            test_passed = False
+            print("\n\033[91mValgrind detected memory issues:\033[0m")
+            for issue in valgrind_issues:
+                print(f"  - {issue}")
+            print(f"\nSee {valgrind_log} for full details")
+        else:
+            # Clean up valgrind log if no issues
+            try:
+                os.remove(valgrind_log)
+            except:
+                pass
 
     if test_passed:
-        print("PASSED")
+        print("\033[92mPASSED\033[0m")
     else:
-        print("FAILED")
+        print("\033[91mFAILED\033[0m")
+
+    return test_passed
 
 # Run tests
-import sys
+if __name__ == "__main__":
+    use_valgrind = False
+    test_nums = []
 
-if len(sys.argv) > 1:
-    # Run specific tests provided as command line arguments
-    for test_num in sys.argv[1:]:
-        test_file = f"tests/test{test_num}.txt"
-        print(f"Running test{test_num}...", end = " ")
-        run_test_file(test_file)
-else:
-    # Run all tests
-    num_tests = len(os.listdir("tests"))
-    for test in range(num_tests):
-        test_file = f"tests/test{test}.txt"
-        print(f"Running test{test}...", end = " ")
-        run_test_file(test_file)
+    # Parse command line arguments
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == "--valgrind":
+            use_valgrind = True
+        else:
+            test_nums.append(sys.argv[i])
+        i += 1
+
+    # Check platform and valgrind availability
+    if use_valgrind:
+        if is_windows() and not is_wsl():
+            print("\033[91m" + "="*60 + "\033[0m")
+            print("\033[91mValgrind is not available on native Windows\033[0m")
+            print("\nTo use Valgrind on Windows, you have two options:")
+            print("  1. Use WSL (Windows Subsystem for Linux):")
+            print("     - Run 'wsl' in PowerShell/CMD to enter WSL")
+            print("     - Install valgrind: sudo apt install valgrind")
+            print("     - Run this script from within WSL")
+            print("\n  2. Use Dr. Memory (Windows alternative to Valgrind):")
+            print("     - Download from: https://drmemory.org/")
+            print("     - Run: drmemory.exe -- your_program.exe")
+            print("\033[91m" + "="*60 + "\033[0m")
+            sys.exit(1)
+
+        if not is_valgrind_available():
+            print("\033[91mError: Valgrind is not installed or not in PATH\033[0m")
+            if is_wsl():
+                print("You are running in WSL. Install valgrind with:")
+                print("  sudo apt update")
+                print("  sudo apt install valgrind")
+            else:
+                print("Install valgrind with:")
+                print("  sudo apt install valgrind (Ubuntu/Debian)")
+                print("  sudo yum install valgrind (RHEL/CentOS)")
+                print("  sudo pacman -S valgrind (Arch)")
+            sys.exit(1)
+
+        print("Running tests with Valgrind memory analysis...")
+        if is_wsl():
+            print("(Detected WSL environment)")
+        print()
+    else:
+        # Show platform info for regular runs
+        if is_windows():
+            print("Running on Windows (native)")
+        elif is_wsl():
+            print("Running on WSL")
+        else:
+            print(f"Running on {platform.system()}")
+        print()
+
+    all_passed = True
+
+    if test_nums:
+        # Run specific tests provided as command line arguments
+        for test_num in test_nums:
+            test_file = f"tests/test{test_num}.txt"
+            print(f"Running test{test_num}...", end = " ")
+            passed = run_test_file(test_file, use_valgrind=use_valgrind)
+            all_passed = all_passed and passed
+    else:
+        # Run all tests
+        try:
+            num_tests = len(os.listdir("tests"))
+            for test in range(num_tests):
+                test_file = f"tests/test{test}.txt"
+                print(f"Running test{test}...", end = " ")
+                passed = run_test_file(test_file, use_valgrind=use_valgrind)
+                all_passed = all_passed and passed
+        except FileNotFoundError:
+            print("\033[91mError: 'tests' directory not found\033[0m")
+            sys.exit(1)
+
+    print("\n" + "="*50)
+    if all_passed:
+        print("\033[92mAll tests passed!\033[0m")
+        sys.exit(0)
+    else:
+        print("\033[91mSome tests failed\033[0m")
+        sys.exit(1)
