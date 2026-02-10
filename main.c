@@ -37,15 +37,29 @@ bool verbose = false;
 bool superblock_loaded = false;
 struct superblock superblock;
 
+int disk_read(FILE* disk, void* buffer, const size_t size) {
+    const auto bytes_read = fread(buffer, 1, size, disk);
+    if (bytes_read != size) {
+        printf("Error: failed to read %zu bytes (read %zu).\n", size, bytes_read);
+        return -1;
+    }
+
+    return 0;
+}
+
 int disk_read_at(FILE* disk, const uint32_t location, void* buffer, const size_t size) {
     if (fseek(disk, (long) location, SEEK_SET) != 0) {
         printf("Error: failed to seek to position %u.\n", location);
         return -1;
     }
 
-    const auto bytes_read = fread(buffer, 1, size, disk);
-    if (bytes_read != size) {
-        printf("Error: failed to read %zu bytes (read %zu).\n", size, bytes_read);
+    return disk_read(disk, buffer, size);
+}
+
+int disk_write(FILE* disk, const void* data, const size_t size) {
+    const auto bytes_written = fwrite(data, 1, size, disk);
+    if (bytes_written != size) {
+        printf("Error: failed to write %zu bytes (wrote %zu).\n", size, bytes_written);
         return -1;
     }
 
@@ -58,13 +72,7 @@ int disk_write_at(FILE* disk, const uint32_t location, const void* data, const s
         return -1;
     }
 
-    const auto bytes_written = fwrite(data, 1, size, disk);
-    if (bytes_written != size) {
-        printf("Error: failed to write %zu bytes (wrote %zu).\n", size, bytes_written);
-        return -1;
-    }
-
-    return 0;
+    return disk_write(disk, data, size);
 }
 
 // Returns -1 if the given disk does not exist
@@ -232,8 +240,8 @@ int find_next_free_data_block() {
     }
     uint8_t current_bitmap_byte;
     for (int byte = 0; byte < num_bytes_to_check; byte++) {
-        if (fread(&current_bitmap_byte, 1, 1, disk) != 1) {
-            printf("Failed to read %d of free bitmap table\n", byte);
+        if (disk_read(disk, &current_bitmap_byte, 1) != 0) {
+            printf("Failed to read byte %d of free bitmap table\n", byte);
             return -1;
         }
 
@@ -371,8 +379,6 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
             return -1;
         }
 
-        // fseek(disk, (long) location, SEEK_SET);
-        // fwrite(&dentries[num_dentries - 1], 1, sizeof(struct dentry), disk);
         const auto result = disk_write_at(disk, location, &dentries[num_dentries - 1], sizeof(struct dentry));
         fclose(disk);
 
@@ -504,7 +510,11 @@ int run_command_init(const char* disk_name) {
     }
 
     // Write superblock to the beginning of the disk
-    fwrite(&sb, sizeof(struct superblock), 1, disk);
+    if (disk_write(disk, &sb, sizeof(struct superblock)) != 0) {
+        fclose(disk);
+        printf("File error: could not write superblock to the disk\n");
+        return -1;
+    }
 
     // Create root inode (always inode 0)
     struct inode root_inode = {-1};
@@ -512,23 +522,39 @@ int run_command_init(const char* disk_name) {
     root_inode.block_pointers[0] = 0;
     root_inode.is_used = true;
 
-    fwrite(&root_inode, sizeof(struct inode), 1, disk);
+    if (disk_write(disk, &root_inode, sizeof(struct inode)) != 0) {
+        fclose(disk);
+        printf("File error: could not write root inode to the disk\n");
+        return -1;
+    }
 
     // Write blank inodes to the disk next
     const struct inode inode = {0};
     for (int i = 0; i < DEFAULT_INODE_COUNT - 1; i++) {
-        fwrite(&inode, sizeof(struct inode), 1, disk);
+        if (disk_write(disk, &inode, sizeof(struct inode)) != 0) {
+            fclose(disk);
+            printf("File error: could not write inode %d to the disk\n", i);
+            return -1;
+        }
     }
 
     // Write blank bytes for free space bitmap
-    char bitmap[block_count / 8];
+    uint8_t bitmap[block_count / 8];
     memset(bitmap, 0, block_count / 8);
-    fwrite(&bitmap, sizeof(bitmap), 1, disk);
+    if (disk_write(disk, &bitmap, sizeof(bitmap)) != 0) {
+        fclose(disk);
+        printf("File error: could not write free block bitmap to the disk\n");
+        return -1;
+    }
 
     // Fill the rest of the space with empty data blocks
     constexpr uint8_t empty_data_block[DEFAULT_BLOCK_SIZE] = {0};
     for (int i = 0; i < block_count; i++) {
-        fwrite(empty_data_block, sizeof(empty_data_block), 1, disk);
+        if (disk_write(disk, empty_data_block, sizeof(empty_data_block)) != 0) {
+            fclose(disk);
+            printf("File error: could not write data block %d to the disk\n", i);
+            return -1;
+        }
     }
 
     fclose(disk);
@@ -696,7 +722,8 @@ int run_command_open(char* file_path) {
         if (verbose) printf("Read %d bytes from data block %d\n", bytes_to_read, block_number);
     }
 
-    char output_file_name[strlen(file_path)];
+    // +5 to give enough space for .txt\0
+    char output_file_name[strlen(file_path) + 5];
     strcpy(output_file_name, file_path);
     strcat(output_file_name, ".txt");
 
@@ -745,6 +772,11 @@ int run_command_save(char* input_file_path, char* file_path) {
 
     do {
         bytes_read = (int) fread(data, 1, superblock.block_size, input_file);
+        if (bytes_read < superblock.block_size && !feof(input_file)) {
+            printf("Error reading file %s, expected %d bytes, only read %d",
+                input_file_path, superblock.block_size, bytes_read);
+            return -1;
+        }
 
         int block_number = inode.block_pointers[total_bytes_read / superblock.block_size];
         if (block_number == 0) {
