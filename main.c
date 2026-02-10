@@ -282,27 +282,37 @@ int get_num_dentries(const int directory_number) {
 }
 
 // Finds all the dentries in the specified directory
-int get_dentries(const int directory_number, struct dentry* destination) {
+struct dentry* get_dentries(const int directory_number, int* num_dentries) {
     struct inode directory_inode;
     read_inode(directory_number, &directory_inode);
 
-    const int num_dentries = (int) (directory_inode.file_size / sizeof(struct dentry));
-    int dentries_remaining = num_dentries; // Tracks how many dentries still need to be read
+    int num_dentries_remaining = (int) (directory_inode.file_size / sizeof(struct dentry));
+    if (num_dentries) {
+        *num_dentries = num_dentries_remaining;
+    }
+
+    struct dentry* dentries = malloc(num_dentries_remaining * sizeof(struct dentry));
+    if (!dentries) {
+        printf("Error: Failed to allocate memory for dentries\n");
+        return nullptr;
+    }
+
     int dentries_read = 0;
 
     // Acquire all dentries
-    while (dentries_remaining > 0) {
+    while (num_dentries_remaining > 0) {
         // Either read 4 dentries, or read the number left if less than 4
         int dentries_to_read = DENTRIES_PER_BLOCK;
-        if (dentries_remaining < dentries_to_read) dentries_to_read = dentries_remaining;
+        if (num_dentries_remaining < dentries_to_read) dentries_to_read = num_dentries_remaining;
 
-        read_data_from_block(directory_inode.block_pointers[dentries_read / DENTRIES_PER_BLOCK], &destination[dentries_read], sizeof(struct dentry) * dentries_to_read);
+        read_data_from_block(directory_inode.block_pointers[dentries_read / DENTRIES_PER_BLOCK],
+            &dentries[dentries_read], sizeof(struct dentry) * dentries_to_read);
 
         dentries_read += dentries_to_read;
-        dentries_remaining -= dentries_to_read;
+        num_dentries_remaining -= dentries_to_read;
     }
 
-    return 0;
+    return dentries;
 }
 
 // Adds the specified dentry to the specified directory
@@ -361,9 +371,8 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
     struct inode dir_inode;
     read_inode(dir_inode_number, &dir_inode);
 
-    const int num_dentries = (int)(dir_inode.file_size / sizeof(struct dentry));
-    struct dentry dentries[num_dentries];
-    get_dentries(dir_inode_number, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(dir_inode_number, &num_dentries);
 
     // Remove corresponding dentry from this directory
     // Do this by overwriting corresponding dentry with the last dentry in the directory
@@ -376,6 +385,7 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
         FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
         if (!disk) {
             printf("Error: Failed to open disk\n");
+            free((void*) dentries);
             return -1;
         }
 
@@ -384,6 +394,7 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
 
         if (result != 0) {
             printf("File error: failed to write dentry to data block %d\n", block_number);
+            free((void*) dentries);
             return result;
         }
     }
@@ -400,6 +411,7 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
 
     write_inode(dir_inode_number, &dir_inode);
 
+    free((void*) dentries);
     return 0;
 }
 
@@ -419,24 +431,31 @@ int get_dentry_number_of_file(const struct dentry* dentries, const int num_dentr
 // Returns -1 if the file doesn't exist in the directory
 // Assumes that the provided inode number corresponds to a directory
 int get_dentry_number_of_file_from_inode(const int dir_inode_number, const char* filename, const int expected_file_type) {
-    const auto num_dentries = get_num_dentries(dir_inode_number);
-    struct dentry dentries[num_dentries];
-    get_dentries(dir_inode_number, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(dir_inode_number, &num_dentries);
 
-    return get_dentry_number_of_file(dentries, num_dentries, filename, expected_file_type);
+    const auto dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, expected_file_type);
+
+    free((void*) dentries);
+    return dentry_number;
 }
 
 // Returns the inode number of the given file within the given directory
 // Returns -1 if the file does not exist
 int get_inode_number_of_file(const int directory_number, const char* filename, const int expected_file_type) {
-    const int num_dentries = get_num_dentries(directory_number);
-    struct dentry dentries[num_dentries];
-    get_dentries(directory_number, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(directory_number, &num_dentries);
 
     const auto dentry_number = get_dentry_number_of_file(&dentries[0], num_dentries, filename, expected_file_type);
-    if (dentry_number == -1) return -1;
+    if (dentry_number == -1) {
+        free((void*) dentries);
+        return -1;
+    }
 
-    return dentries[dentry_number].inode_number;
+    const auto inode_number = dentries[dentry_number].inode_number;
+
+    free((void*) dentries);
+    return inode_number;
 }
 
 // If path is dir/dir/.../file, sets 'last' to 'file'
@@ -575,15 +594,16 @@ int run_command_init(const char* disk_name) {
 }
 
 int run_command_ls() {
-    const int num_dentries = get_num_dentries(current_working_directory);
-    struct dentry dentries[num_dentries];
-
-    get_dentries(current_working_directory, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(current_working_directory, &num_dentries);
+    if (!dentries) return -1;
 
     for (int i = 0; i < num_dentries; i++) {
         printf("%s ", dentries[i].name);
     }
     printf("\n");
+
+    free((void*) dentries);
     return 0;
 }
 
@@ -907,13 +927,13 @@ int run_command_rm(char* file_path) {
         }
     }
 
-    const auto num_dentries = get_num_dentries(dir_inode);
-    struct dentry dentries[num_dentries];
-    get_dentries(dir_inode, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(dir_inode, &num_dentries);
 
     const auto file_dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, TYPE_FILE);
     if (file_dentry_number == -1) {
         printf("File %s does not exist in the current directory\n", filename);
+        free((void*) dentries);
         return 1;
     }
 
@@ -928,14 +948,14 @@ int run_command_rm(char* file_path) {
         else printf("Removed file %s, inode %d\n", file_path, inode_number);
     }
 
+    free((void*) dentries);
     return 0;
 }
 
 // Recursively removes the specified directory and all of its contents
 void remove_directory(const int inode_number) {
-    const auto num_dentries = get_num_dentries(inode_number);
-    struct dentry dentries[num_dentries];
-    get_dentries(inode_number, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(inode_number, &num_dentries);
 
     // Start at dentry 2 to skip . and ..
     for (int i = 2; i < num_dentries; i++) {
@@ -947,6 +967,8 @@ void remove_directory(const int inode_number) {
     }
 
     remove_element(inode_number);
+
+    free((void*) dentries);
 }
 
 int run_command_rmdir(char* path) {
@@ -963,19 +985,20 @@ int run_command_rmdir(char* path) {
         }
     }
 
-    const auto num_dentries = get_num_dentries(dir_inode);
-    struct dentry dentries[num_dentries];
-    get_dentries(dir_inode, &dentries[0]);
+    int num_dentries;
+    const struct dentry* dentries = get_dentries(dir_inode, &num_dentries);
 
     const auto dentry_number = get_dentry_number_of_file(dentries, num_dentries, dir_name, TYPE_DIRECTORY);
     if (dentry_number == -1) {
         printf("Directory %s does not exist in the current directory\n", path);
+        free((void*) dentries);
         return 1;
     }
 
     remove_directory(dentries[dentry_number].inode_number);
     remove_dentry(dir_inode, dentry_number);
 
+    free((void*) dentries);
     return 0;
 }
 
