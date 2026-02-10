@@ -26,6 +26,17 @@
 #define MAX_ARGS 5
 #define MAX_ARG_LEN 252
 
+
+// Keeps track of the inode representing the current working directory
+int current_working_directory = 0;
+
+// Every command produces output if this is true
+// Errors are still printed even if this is false
+bool verbose = false;
+
+bool superblock_loaded = false;
+struct superblock superblock;
+
 // Returns -1 if the given disk does not exist
 int get_superblock(const char* disk, struct superblock* destination) {
     FILE* file = fopen(disk, "r");
@@ -57,6 +68,8 @@ void calculate_disk_structure() {
     FREE_BITMAP_START = free_bitmap_start;
     DATA_START = data_start;
     DENTRIES_PER_BLOCK = dentries_per_block;
+
+    superblock_loaded = true;
 }
 
 int write_data_to_block(const int block_number, const void *data, const size_t data_size) {
@@ -72,6 +85,7 @@ int write_data_to_block(const int block_number, const void *data, const size_t d
 
 int read_data_from_block(const int block_number, void* buffer, const size_t size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+
     const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
 
     fseek(disk, (long) location, SEEK_SET);
@@ -823,6 +837,11 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
     // Initialize a filesystem
     if (strcmp(command[0], "init") == 0) {
         return run_command_init(disk_name);
+    }
+
+    if (!superblock_loaded) {
+        printf("No superblock available. Make sure the disk file exists.\n");
+        return -1;
     }
 
     // List all files and directories in the current working directory

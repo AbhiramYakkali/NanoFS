@@ -8,16 +8,8 @@
 #define TYPE_FILE 0
 #define TYPE_DIRECTORY 1
 
-
 #define DATA_BLOCK_FREE 0
 #define DATA_BLOCK_USED 1
-
-// Keeps track of the inode representing the current working directory
-int current_working_directory = 0;
-
-// Every command produces output if this is true
-// Errors are still printed even if this is false
-bool verbose = false;
 
 struct superblock {
     uint32_t total_size;
@@ -35,8 +27,6 @@ struct dentry {
     uint8_t file_type; // Either 0 (FILE) or 1 (DIRECTORY)
     char name[253];
 };
-
-struct superblock superblock;
 
 uint32_t INODE_TABLE_START, FREE_BITMAP_START, DATA_START;
 uint8_t DENTRIES_PER_BLOCK;
