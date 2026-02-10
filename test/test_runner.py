@@ -110,7 +110,19 @@ def parse_valgrind_output(valgrind_log):
 
     return issues
 
+def format_time(seconds):
+    """Format elapsed time in a human-readable way"""
+    if seconds < 1:
+        return f"{seconds*1000:.0f}ms"
+    elif seconds < 60:
+        return f"{seconds:.3f}s"
+    else:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.3f}s"
+
 def run_test_file(test_path, exec_path="../Filesystem", use_valgrind=False):
+    start_time = time.time()
     test_passed = True
     valgrind_issues = []
 
@@ -126,7 +138,7 @@ def run_test_file(test_path, exec_path="../Filesystem", use_valgrind=False):
         if is_windows() and not is_wsl():
             print("\n\033[91mError: Valgrind is not available on native Windows\033[0m")
             print("Please use WSL (Windows Subsystem for Linux) to run valgrind tests")
-            return False
+            return False, 0
 
         valgrind_log = f"valgrind_{os.path.basename(test_path)}.log"
         cmd = [
@@ -255,15 +267,18 @@ def run_test_file(test_path, exec_path="../Filesystem", use_valgrind=False):
             except:
                 pass
 
-    if test_passed:
-        print("\033[92mPASSED\033[0m")
-    else:
-        print("\033[91mFAILED\033[0m")
+    elapsed_time = time.time() - start_time
 
-    return test_passed
+    if test_passed:
+        print(f"\033[92mPASSED\033[0m ({format_time(elapsed_time)})")
+    else:
+        print(f"\033[91mFAILED\033[0m ({format_time(elapsed_time)})")
+
+    return test_passed, elapsed_time
 
 # Run tests
 if __name__ == "__main__":
+    overall_start_time = time.time()
     use_valgrind = False
     test_nums = []
 
@@ -320,13 +335,18 @@ if __name__ == "__main__":
         print()
 
     all_passed = True
+    total_tests = 0
+    passed_tests = 0
 
     if test_nums:
         # Run specific tests provided as command line arguments
         for test_num in test_nums:
             test_file = f"tests/test{test_num}.txt"
             print(f"Running test{test_num}...", end = " ")
-            passed = run_test_file(test_file, use_valgrind=use_valgrind)
+            passed, elapsed = run_test_file(test_file, use_valgrind=use_valgrind)
+            total_tests += 1
+            if passed:
+                passed_tests += 1
             all_passed = all_passed and passed
     else:
         # Run all tests
@@ -335,16 +355,24 @@ if __name__ == "__main__":
             for test in range(num_tests):
                 test_file = f"tests/test{test}.txt"
                 print(f"Running test{test}...", end = " ")
-                passed = run_test_file(test_file, use_valgrind=use_valgrind)
+                passed, elapsed = run_test_file(test_file, use_valgrind=use_valgrind)
+                total_tests += 1
+                if passed:
+                    passed_tests += 1
                 all_passed = all_passed and passed
         except FileNotFoundError:
             print("\033[91mError: 'tests' directory not found\033[0m")
             sys.exit(1)
 
+    overall_elapsed_time = time.time() - overall_start_time
+
     print("\n" + "="*50)
     if all_passed:
-        print("\033[92mAll tests passed!\033[0m")
-        sys.exit(0)
+        print(f"\033[92mAll tests passed!\033[0m ({passed_tests}/{total_tests})")
     else:
-        print("\033[91mSome tests failed\033[0m")
-        sys.exit(1)
+        print(f"\033[91mSome tests failed\033[0m ({passed_tests}/{total_tests} passed)")
+
+    print(f"Total time: {format_time(overall_elapsed_time)}")
+    print("="*50)
+
+    sys.exit(0 if all_passed else 1)

@@ -45,6 +45,43 @@ Wrote 1024 bytes to data block 9
 Wrote 805 bytes to data block 10
 Finished copying. Wrote 2853 bytes total
 
+SEND rmdir dir1/dir2
+EXPECT
+Data block 6 for directory 1 is now free
+
+SEND cd dir1
+EXPECT
+Switched to directory dir1, inode 1
+
+SEND ls
+EXPECT
+. .. file1 file2
+
+SEND cd ..
+EXPECT
+Switched to directory .., inode 0
+
+SEND mkdir dir1/dir3
+EXPECT
+Allocated new data block 6 for directory, inode 1
+Created new directory dir1/dir3, inode 5, data block 5
+
+SEND create dir1/dir3/file3
+EXPECT
+Created new file dir1/dir3/file3, inode 6, data block 7
+
+SEND create dir1/dir3/file4
+EXPECT
+Created new file dir1/dir3/file4, inode 7, data block 8
+
+SEND save large_input.txt dir1/dir3/file3
+EXPECT
+Copying from large_input.txt to dir1/dir3/file3, inode 6
+Wrote 1024 bytes to data block 7
+Wrote 1024 bytes to data block 9
+Wrote 805 bytes to data block 10
+Finished copying. Wrote 2853 bytes total
+
 SEND rm dir1
 EXPECT
 File dir1 does not exist in the current directory
