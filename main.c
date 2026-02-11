@@ -40,7 +40,7 @@ struct superblock superblock;
 int disk_read(FILE* disk, void* buffer, const size_t size) {
     const auto bytes_read = fread(buffer, 1, size, disk);
     if (bytes_read != size) {
-        printf("Error: failed to read %zu bytes (read %zu).\n", size, bytes_read);
+        printf("Error: failed to read %zu byte(s) (read %zu).\n", size, bytes_read);
         return -1;
     }
 
@@ -59,7 +59,7 @@ int disk_read_at(FILE* disk, const uint32_t location, void* buffer, const size_t
 int disk_write(FILE* disk, const void* data, const size_t size) {
     const auto bytes_written = fwrite(data, 1, size, disk);
     if (bytes_written != size) {
-        printf("Error: failed to write %zu bytes (wrote %zu).\n", size, bytes_written);
+        printf("Error: failed to write %zu byte(s) (wrote %zu).\n", size, bytes_written);
         return -1;
     }
 
@@ -112,19 +112,36 @@ void calculate_disk_structure() {
     superblock_loaded = true;
 }
 
-int write_data_to_block(const int block_number, const void *data, const size_t data_size) {
+int write_data_to_block_disk(FILE* disk, const int block_number, const void *data, const size_t size) {
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+    const auto result = disk_write_at(disk, location, data, size);
+
+    if (result != 0) {
+        printf("File error: could not write to data block %d\n", block_number);
+    }
+
+    return result;
+}
+
+int write_data_to_block(const int block_number, const void *data, const size_t size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
     if (!disk) {
         printf("File error: Failed to open disk\n");
         return -1;
     }
 
-    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
-    const auto result = disk_write_at(disk, location, data, data_size);
+    const auto result = write_data_to_block_disk(disk, block_number, data, size);
+
     fclose(disk);
+    return result;
+}
+
+int read_data_from_block_disk(FILE* disk, const int block_number, void* buffer, const size_t size) {
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+    const auto result = disk_read_at(disk, location, buffer, size);
 
     if (result != 0) {
-        printf("File error: could not write to data block %d\n", block_number);
+        printf("File error: could not read data from data block %d\n", block_number);
     }
 
     return result;
@@ -137,12 +154,18 @@ int read_data_from_block(const int block_number, void* buffer, const size_t size
         return -1;
     }
 
-    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
-    const auto result = disk_read_at(disk, location, buffer, size);
+    const auto result = read_data_from_block_disk(disk, block_number, buffer, size);
     fclose(disk);
 
+    return result;
+}
+
+int read_inode_disk(FILE* disk, const int inode_number, struct inode* destination) {
+    const uint32_t location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+    const auto result = disk_read_at(disk, location, destination, sizeof(struct inode));
+
     if (result != 0) {
-        printf("File error: could not read data from data block %d\n", block_number);
+        printf("File error: could not read inode %d\n", inode_number);
     }
 
     return result;
@@ -154,13 +177,19 @@ int read_inode(const int inode_number, struct inode* destination) {
         printf("File error: Failed to open disk\n");
         return -1;
     }
-    
-    const uint32_t location = INODE_TABLE_START + inode_number * sizeof(struct inode);
-    const auto result = disk_read_at(disk, location, destination, sizeof(struct inode));
+
+    const auto result = read_inode_disk(disk, inode_number, destination);
     fclose(disk);
 
+    return result;
+}
+
+int write_inode_disk(FILE* disk, const int inode_number, const struct inode* inode) {
+    const uint32_t location = INODE_TABLE_START + inode_number * sizeof(struct inode);
+    const auto result = disk_write_at(disk, location, inode, sizeof(struct inode));
+
     if (result != 0) {
-        printf("File error: could not read inode %d\n", inode_number);
+        printf("File error: could not write to inode %d\n", inode_number);
     }
 
     return result;
@@ -177,25 +206,14 @@ int write_inode(const int inode_number, const struct inode* inode) {
     const auto result = disk_write_at(disk, location, inode, sizeof(struct inode));
     fclose(disk);
 
-    if (result != 0) {
-        printf("File error: could not write to inode %d\n", inode_number);
-    }
-
     return result;
 }
 
-// Updates the free bitmap table to indicate if a certain block is used (1) or unused (0)
-int set_data_block_status(const int block_number, const int status) {
+int set_data_block_status_disk(FILE* disk, const int block_number, const int status) {
     const int byte = block_number / 8;
     const int bit = block_number % 8;
     const uint8_t mask = 128 >> bit;
 
-    FILE *disk = fopen(DEFAULT_DISK_NAME, "r+b");
-    if (!disk) {
-        printf("Error: Failed to open disk\n");
-        return -1;
-    }
-    
     const auto location = FREE_BITMAP_START + byte;
     uint8_t current_bitmap_byte;
 
@@ -214,22 +232,26 @@ int set_data_block_status(const int block_number, const int status) {
     result = disk_write_at(disk, location, &current_bitmap_byte, sizeof(current_bitmap_byte));
     if (result != 0) {
         printf("File error: could not write to byte %d of free bitmap table\n", byte);
-        return result;
     }
-    fclose(disk);
 
-    return 0;
+    return result;
 }
 
-// Finds the first data block that is unused as specified by the bitmap
-// Returns -1 if no free data blocks exist
-int find_next_free_data_block() {
-    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+// Updates the free bitmap table to indicate if a certain block is used (1) or unused (0)
+int set_data_block_status(const int block_number, const int status) {
+    FILE *disk = fopen(DEFAULT_DISK_NAME, "r+b");
     if (!disk) {
         printf("Error: Failed to open disk\n");
         return -1;
     }
+    
+    const auto result = set_data_block_status_disk(disk, block_number, status);
 
+    fclose(disk);
+    return result;
+}
+
+int find_next_free_data_block_disk(FILE* disk) {
     const auto location = FREE_BITMAP_START;
     const int num_bytes_to_check = superblock.block_size / 8;
     constexpr uint8_t mask = 1 << 7;
@@ -247,17 +269,30 @@ int find_next_free_data_block() {
 
         for (int bit = 0; bit < 8; bit++) {
             if ((current_bitmap_byte & mask) == DATA_BLOCK_FREE) {
-                fclose(disk);
                 return byte * 8 + bit;
             }
 
             current_bitmap_byte <<= 1;
         }
     }
-    fclose(disk);
 
     // No free data blocks exist
     return -1;
+}
+
+// Finds the first data block that is unused as specified by the bitmap
+// Returns -1 if no free data blocks exist
+int find_next_free_data_block() {
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
+    }
+
+    const auto result = find_next_free_data_block_disk(disk);
+
+    fclose(disk);
+    return result;
 }
 
 // Finds the first inode that is not being used
@@ -298,6 +333,12 @@ struct dentry* get_dentries(const int directory_number, int* num_dentries) {
     }
 
     int dentries_read = 0;
+    int blocks_read = 0;
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    if (!disk) {
+        printf("File error: Failed to open disk\n");
+        return nullptr;
+    }
 
     // Acquire all dentries
     while (num_dentries_remaining > 0) {
@@ -305,13 +346,15 @@ struct dentry* get_dentries(const int directory_number, int* num_dentries) {
         int dentries_to_read = DENTRIES_PER_BLOCK;
         if (num_dentries_remaining < dentries_to_read) dentries_to_read = num_dentries_remaining;
 
-        read_data_from_block(directory_inode.block_pointers[dentries_read / DENTRIES_PER_BLOCK],
+        read_data_from_block_disk(disk, directory_inode.block_pointers[blocks_read],
             &dentries[dentries_read], sizeof(struct dentry) * dentries_to_read);
 
         dentries_read += dentries_to_read;
         num_dentries_remaining -= dentries_to_read;
+        blocks_read++;
     }
 
+    fclose(disk);
     return dentries;
 }
 
@@ -322,22 +365,23 @@ int create_dentry(const struct dentry* dentry, const int directory) {
 
     // The number of dentries the cwd currently has determines where the next one goes
     const int num_dentries = (int) (dir_inode.file_size / sizeof(struct dentry));
+    int block_number = dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
 
     if (num_dentries % DENTRIES_PER_BLOCK == 0) {
         // New data block must be allocated for the new dentry to be created
-        const auto new_data_block = find_next_free_data_block();
-        if (new_data_block == -1) {
+        block_number = find_next_free_data_block();
+        if (block_number == -1) {
             return -1;
         }
 
-        dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = new_data_block;
-        set_data_block_status(new_data_block, DATA_BLOCK_USED);
+        dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = block_number;
+        // printf("Block pointer %d set to %d\n", num_dentries / DENTRIES_PER_BLOCK, block_number);
+        set_data_block_status(block_number, DATA_BLOCK_USED);
 
-        if (verbose) printf("Allocated new data block %d for directory, inode %d\n", new_data_block, directory);
+        if (verbose) printf("Allocated new data block %d for directory, inode %d\n", block_number, directory);
     }
     dir_inode.file_size += sizeof(struct dentry);
 
-    const int block_number = dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
     const uint32_t location = DATA_START + block_number * superblock.block_size +
         (num_dentries % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
 
@@ -348,16 +392,16 @@ int create_dentry(const struct dentry* dentry, const int directory) {
     }
 
     const auto result = disk_write_at(disk, location, dentry, sizeof(struct dentry));
-    fclose(disk);
 
     if (result != 0) {
         printf("File error: failed to write dentry to data block %d\n", block_number);
-        set_data_block_status(block_number, DATA_BLOCK_FREE);
         return result;
     }
 
+    // set_data_block_status(block_number, DATA_BLOCK_USED);
     write_inode(directory, &dir_inode);
 
+    fclose(disk);
     return 0;
 }
 
@@ -374,6 +418,13 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
     int num_dentries;
     const struct dentry* dentries = get_dentries(dir_inode_number, &num_dentries);
 
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        free((void*) dentries);
+        return -1;
+    }
+
     // Remove corresponding dentry from this directory
     // Do this by overwriting corresponding dentry with the last dentry in the directory
     // Only needed if the dentry to be removed is NOT the last dentry in the list
@@ -382,19 +433,12 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
         const uint32_t location = DATA_START + block_number *
             superblock.block_size + (dentry_number % DENTRIES_PER_BLOCK) * sizeof(struct dentry);
 
-        FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
-        if (!disk) {
-            printf("Error: Failed to open disk\n");
-            free((void*) dentries);
-            return -1;
-        }
-
         const auto result = disk_write_at(disk, location, &dentries[num_dentries - 1], sizeof(struct dentry));
-        fclose(disk);
 
         if (result != 0) {
             printf("File error: failed to write dentry to data block %d\n", block_number);
             free((void*) dentries);
+            fclose(disk);
             return result;
         }
     }
@@ -404,14 +448,14 @@ int remove_dentry(const int dir_inode_number, const int dentry_number) {
     if (num_dentries % DENTRIES_PER_BLOCK == 1) {
         const auto block_number = dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK];
         set_data_block_status(block_number, DATA_BLOCK_FREE);
-        dir_inode.block_pointers[num_dentries / DENTRIES_PER_BLOCK] = 0;
 
         if (verbose) printf("Data block %d for directory %d is now free\n", block_number, dir_inode_number);
     }
 
-    write_inode(dir_inode_number, &dir_inode);
+    write_inode_disk(disk, dir_inode_number, &dir_inode);
 
     free((void*) dentries);
+    fclose(disk);
     return 0;
 }
 
@@ -425,19 +469,6 @@ int get_dentry_number_of_file(const struct dentry* dentries, const int num_dentr
     }
 
     return -1;
-}
-
-// Returns the number corresponding to the index of the requested file, given a directory inode to check
-// Returns -1 if the file doesn't exist in the directory
-// Assumes that the provided inode number corresponds to a directory
-int get_dentry_number_of_file_from_inode(const int dir_inode_number, const char* filename, const int expected_file_type) {
-    int num_dentries;
-    const struct dentry* dentries = get_dentries(dir_inode_number, &num_dentries);
-
-    const auto dentry_number = get_dentry_number_of_file(dentries, num_dentries, filename, expected_file_type);
-
-    free((void*) dentries);
-    return dentry_number;
 }
 
 // Returns the inode number of the given file within the given directory
@@ -522,7 +553,7 @@ int run_command_init(const char* disk_name) {
     superblock = sb;
     calculate_disk_structure();
 
-    FILE *disk = fopen(disk_name, "wb");
+    FILE *disk = fopen(disk_name, "w+b");
     if (disk == nullptr) {
         printf("Failed to open disk: %s\n", disk_name);
         return 1;
@@ -576,20 +607,19 @@ int run_command_init(const char* disk_name) {
         }
     }
 
-    fclose(disk);
-
     // Initialize root directory's data block
     const struct dentry entries[] = {
         {0, TYPE_DIRECTORY, "."},
         {0, TYPE_DIRECTORY, ".."}
     };
-    write_data_to_block(0, entries, sizeof(entries));
-    set_data_block_status(0, 1);
+    write_data_to_block_disk(disk, 0, entries, sizeof(entries));
+    set_data_block_status_disk(disk, 0, DATA_BLOCK_USED);
 
     current_working_directory = 0;
 
     if (verbose) printf("Initialized NanoFS system: %s\n", disk_name);
 
+    fclose(disk);
     return 0;
 }
 
@@ -668,18 +698,25 @@ int run_command_write(char* file_path, const char* content) {
         return 1;
     }
 
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
+    }
+
     struct inode inode;
-    read_inode(inode_number, &inode);
+    read_inode_disk(disk, inode_number, &inode);
 
     const int data_size = (int) strlen(content);
     inode.file_size = data_size;
 
-    write_inode(inode_number, &inode);
-    write_data_to_block(inode.block_pointers[0], content, data_size);
+    write_inode_disk(disk, inode_number, &inode);
+    write_data_to_block_disk(disk, inode.block_pointers[0], content, data_size);
 
     if (verbose) printf("Wrote %d bytes to file %s, inode %d, data block %d\n",
         data_size, file_path, inode_number, inode.block_pointers[0]);
 
+    fclose(disk);
     return 0;
 }
 
@@ -692,21 +729,23 @@ int run_command_read(char* file_path) {
         return 1;
     }
 
-    struct inode inode;
-    read_inode(inode_number, &inode);
-    const auto data_size = MIN(inode.file_size, superblock.block_size);
-
-    if (data_size == 0) {
-        if (verbose) printf("\nRead 0 bytes from file %s, inode %d, data block %d\n",
-            file_path, inode_number, inode.block_pointers[0]);
-        return 0;
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
     }
 
+    struct inode inode;
+    read_inode_disk(disk, inode_number, &inode);
+    const auto data_size = MIN(inode.file_size, superblock.block_size);
+
     char data[data_size + 1];
-    read_data_from_block(inode.block_pointers[0], &data, data_size);
+    read_data_from_block_disk(disk, inode.block_pointers[0], &data, data_size);
     data[data_size] = '\0';
 
-    printf("%s\n", data);
+    fclose(disk);
+
+    if (data_size > 0) printf("%s\n", data);
 
     if (verbose) printf("Read %d bytes from file %s, inode %d, data block %d\n",
         data_size, file_path, inode_number, inode.block_pointers[0]);
@@ -731,16 +770,24 @@ int run_command_open(char* file_path) {
 
     if (verbose) printf("Copying %s, inode %d, into real filesystem\n", file_path, inode_number);
 
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
+    }
+
     while (bytes_read < data_size) {
         const auto bytes_to_read = MIN(data_size - bytes_read, DEFAULT_BLOCK_SIZE);
 
         const auto block_number = inode.block_pointers[bytes_read / superblock.block_size];
-        read_data_from_block(block_number, &data[bytes_read], bytes_to_read);
+        read_data_from_block_disk(disk, block_number, &data[bytes_read], bytes_to_read);
 
         bytes_read += bytes_to_read;
 
         if (verbose) printf("Read %d bytes from data block %d\n", bytes_to_read, block_number);
     }
+
+    fclose(disk);
 
     // +5 to give enough space for .txt\0
     char output_file_name[strlen(file_path) + 5];
@@ -780,13 +827,19 @@ int run_command_save(char* input_file_path, char* file_path) {
         return 1;
     }
 
-    struct inode inode;
-    read_inode(inode_number, &inode);
-
     char data[superblock.block_size];
 
     int bytes_read = 0;
     int total_bytes_read = 0;
+
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
+    }
+
+    struct inode inode;
+    read_inode_disk(disk, inode_number, &inode);
 
     if (verbose) printf("Copying from %s to %s, inode %d\n", input_file_path, file_path, inode_number);
 
@@ -800,17 +853,17 @@ int run_command_save(char* input_file_path, char* file_path) {
 
         int block_number = inode.block_pointers[total_bytes_read / superblock.block_size];
         if (block_number == 0) {
-            block_number = find_next_free_data_block();
+            block_number = find_next_free_data_block_disk(disk);
 
             if (block_number == -1) {
                 printf("No free data blocks in disk, couldn't save file %s. Only saved %d bytes.\n", file_path, total_bytes_read);
                 return -1;
             }
 
-            set_data_block_status(block_number, DATA_BLOCK_USED);
+            set_data_block_status_disk(disk, block_number, DATA_BLOCK_USED);
             inode.block_pointers[total_bytes_read / superblock.block_size] = block_number;
         }
-        write_data_to_block(block_number, data, bytes_read);
+        write_data_to_block_disk(disk, block_number, data, bytes_read);
         if (verbose) printf("Wrote %d bytes to data block %d\n", bytes_read, block_number);
 
         total_bytes_read += bytes_read;
@@ -819,10 +872,11 @@ int run_command_save(char* input_file_path, char* file_path) {
     fclose(input_file);
 
     inode.file_size = total_bytes_read;
-    write_inode(inode_number, &inode);
+    write_inode_disk(disk, inode_number, &inode);
 
     if (verbose) printf("Finished copying. Wrote %d bytes total\n", total_bytes_read);
 
+    fclose(disk);
     return 0;
 }
 
@@ -901,16 +955,28 @@ int run_command_cd(char directory[MAX_ARG_LEN + 1], const bool print) {
 }
 
 // Marks inode as unused and marks all used data blocks as unused
-void remove_element(const int inode_number) {
+void remove_element(const int inode_number, const uint8_t file_type) {
     struct inode inode;
-    read_inode(inode_number, &inode);
-    for (int i = 0; i < 12; i++) {
-        if (inode.block_pointers[i] == 0) break;
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return;
+    }
 
+    read_inode(inode_number, &inode);
+
+    const int num_block_pointers = ceil((double) inode.file_size / (double) superblock.block_size);
+
+    // printf("Freeing data blocks for inode %d...\n", inode_number);
+    for (int i = 0; i < NUM_BLOCK_POINTERS; i++) {
+        if (inode.block_pointers[i] == 0) break;
+        // printf("Freeing data block %d, block pointer %d\n", inode.block_pointers[i], i);
         set_data_block_status(inode.block_pointers[i], DATA_BLOCK_FREE);
     }
     inode.is_used = 0;
-    write_inode(inode_number, &inode);
+    write_inode_disk(disk, inode_number, &inode);
+
+    fclose(disk);
 }
 
 int run_command_rm(char* file_path) {
@@ -939,7 +1005,7 @@ int run_command_rm(char* file_path) {
 
     // Mark all data blocks used by this file as free
     const auto inode_number = dentries[file_dentry_number].inode_number;
-    remove_element(inode_number);
+    remove_element(inode_number, dentries[file_dentry_number].file_type);
 
     remove_dentry(dir_inode, file_dentry_number);
 
@@ -962,11 +1028,11 @@ void remove_directory(const int inode_number) {
         if (dentries[i].file_type == TYPE_DIRECTORY) {
             remove_directory(dentries[i].inode_number);
         } else {
-            remove_element(dentries[i].inode_number);
+            remove_element(dentries[i].inode_number, dentries[i].file_type);
         }
     }
 
-    remove_element(inode_number);
+    remove_element(inode_number, TYPE_DIRECTORY);
 
     free((void*) dentries);
 }

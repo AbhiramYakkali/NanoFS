@@ -11,6 +11,8 @@
 #define DATA_BLOCK_FREE 0
 #define DATA_BLOCK_USED 1
 
+#define NUM_BLOCK_POINTERS 12
+
 struct superblock {
     uint32_t total_size;
     uint16_t block_size, block_count, inode_size, inode_count;
@@ -18,7 +20,7 @@ struct superblock {
 
 struct inode {
     uint16_t file_size; // In bytes
-    uint16_t block_pointers[12]; // 0 indicates an unused pointer
+    uint16_t block_pointers[NUM_BLOCK_POINTERS]; // 0 indicates an unused pointer
     uint8_t is_used; // 0 = not in use
 };
 
