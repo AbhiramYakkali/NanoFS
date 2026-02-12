@@ -11,31 +11,6 @@ def is_windows():
     """Check if running on Windows (not WSL)"""
     return platform.system() == "Windows"
 
-def is_wsl():
-    """Check if running in WSL"""
-    try:
-        with open('/proc/version', 'r') as f:
-            return 'microsoft' in f.read().lower()
-    except:
-        return False
-
-def is_valgrind_available():
-    """Check if valgrind is available on the system"""
-    if is_windows() and not is_wsl():
-        # On native Windows, valgrind is not available
-        return False
-
-    try:
-        result = subprocess.run(
-            ["valgrind", "--version"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=5
-        )
-        return result.returncode == 0
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
 def print_diff(expected, actual):
     diff = difflib.ndiff(expected.splitlines(), actual.splitlines())
     for line in diff:
@@ -135,11 +110,6 @@ def run_test_file(test_path, exec_path="../Filesystem", use_valgrind=False):
 
     # Build command
     if use_valgrind:
-        if is_windows() and not is_wsl():
-            print("\n\033[91mError: Valgrind is not available on native Windows\033[0m")
-            print("Please use WSL (Windows Subsystem for Linux) to run valgrind tests")
-            return False, 0
-
         valgrind_log = f"valgrind_{os.path.basename(test_path)}.log"
         cmd = [
             "valgrind",
@@ -290,49 +260,6 @@ if __name__ == "__main__":
         else:
             test_nums.append(sys.argv[i])
         i += 1
-
-    # Check platform and valgrind availability
-    if use_valgrind:
-        if is_windows() and not is_wsl():
-            print("\033[91m" + "="*60 + "\033[0m")
-            print("\033[91mValgrind is not available on native Windows\033[0m")
-            print("\nTo use Valgrind on Windows, you have two options:")
-            print("  1. Use WSL (Windows Subsystem for Linux):")
-            print("     - Run 'wsl' in PowerShell/CMD to enter WSL")
-            print("     - Install valgrind: sudo apt install valgrind")
-            print("     - Run this script from within WSL")
-            print("\n  2. Use Dr. Memory (Windows alternative to Valgrind):")
-            print("     - Download from: https://drmemory.org/")
-            print("     - Run: drmemory.exe -- your_program.exe")
-            print("\033[91m" + "="*60 + "\033[0m")
-            sys.exit(1)
-
-        if not is_valgrind_available():
-            print("\033[91mError: Valgrind is not installed or not in PATH\033[0m")
-            if is_wsl():
-                print("You are running in WSL. Install valgrind with:")
-                print("  sudo apt update")
-                print("  sudo apt install valgrind")
-            else:
-                print("Install valgrind with:")
-                print("  sudo apt install valgrind (Ubuntu/Debian)")
-                print("  sudo yum install valgrind (RHEL/CentOS)")
-                print("  sudo pacman -S valgrind (Arch)")
-            sys.exit(1)
-
-        print("Running tests with Valgrind memory analysis...")
-        if is_wsl():
-            print("(Detected WSL environment)")
-        print()
-    else:
-        # Show platform info for regular runs
-        if is_windows():
-            print("Running on Windows (native)")
-        elif is_wsl():
-            print("Running on WSL")
-        else:
-            print(f"Running on {platform.system()}")
-        print()
 
     all_passed = True
     total_tests = 0
