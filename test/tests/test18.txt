@@ -1,0 +1,140 @@
+# Test cp command to copy files
+
+SEND init
+EXPECT
+Initialized NanoFS system: nanofs_disk
+
+SEND mkdir dir1
+EXPECT
+Created new directory dir1, inode 1, data block 1
+
+SEND mkdir dir2
+EXPECT
+Created new directory dir2, inode 2, data block 2
+
+SEND create dir1/file
+EXPECT
+Created new file dir1/file, inode 3, data block 3
+
+SEND save large_input.txt dir1/file
+EXPECT
+Copying from large_input.txt to dir1/file, inode 3
+Wrote 1024 bytes to data block 3
+Wrote 1024 bytes to data block 4
+Wrote 1024 bytes to data block 5
+Wrote 1024 bytes to data block 6
+Wrote 1024 bytes to data block 7
+Wrote 1024 bytes to data block 8
+Wrote 1024 bytes to data block 9
+Wrote 1024 bytes to data block 10
+Wrote 1024 bytes to data block 11
+Wrote 1024 bytes to data block 12
+Wrote 1024 bytes to data block 13
+Wrote 778 bytes to data block 14
+Finished copying. Wrote 12042 bytes total
+
+SEND create dir2/file
+EXPECT
+Created new file dir2/file, inode 4, data block 15
+
+SEND save medium_input.txt dir2/file
+EXPECT
+Copying from medium_input.txt to dir2/file, inode 4
+Wrote 1024 bytes to data block 15
+Wrote 1024 bytes to data block 16
+Wrote 805 bytes to data block 17
+Finished copying. Wrote 2853 bytes total
+
+SEND cp dir1/file dir2/file
+EXPECT
+Copying from dir1/file, inode 3 to dir2/file, inode 4
+dir2/file already exists, overwriting...
+Copied 1024 bytes from data block 3 to data block 15
+Copied 1024 bytes from data block 4 to data block 16
+Copied 1024 bytes from data block 5 to data block 17
+Copied 1024 bytes from data block 6 to data block 18
+Copied 1024 bytes from data block 7 to data block 19
+Copied 1024 bytes from data block 8 to data block 20
+Copied 1024 bytes from data block 9 to data block 21
+Copied 1024 bytes from data block 10 to data block 22
+Copied 1024 bytes from data block 11 to data block 23
+Copied 1024 bytes from data block 12 to data block 24
+Copied 1024 bytes from data block 13 to data block 25
+Copied 778 bytes from data block 14 to data block 26
+Finished copying. Copied 12042 bytes total
+
+SEND cp dir1/file dir2/newfile
+EXPECT
+dir2/newfile does not exist, creating...
+Created new file dir2/newfile, inode 5, data block 33
+Copying from dir1/file, inode 3 to dir2/newfile, inode 5
+Copied 1024 bytes from data block 3 to data block 27
+Copied 1024 bytes from data block 4 to data block 28
+Copied 1024 bytes from data block 5 to data block 29
+Copied 1024 bytes from data block 6 to data block 30
+Copied 1024 bytes from data block 7 to data block 31
+Copied 1024 bytes from data block 8 to data block 32
+Copied 1024 bytes from data block 9 to data block 33
+Copied 1024 bytes from data block 10 to data block 34
+Copied 1024 bytes from data block 11 to data block 35
+Copied 1024 bytes from data block 12 to data block 36
+Copied 1024 bytes from data block 13 to data block 37
+Copied 778 bytes from data block 14 to data block 38
+Finished copying. Copied 12042 bytes total
+
+SEND open dir1/file
+EXPECT
+Copying dir1/file, inode 3, into real filesystem
+Read 1024 bytes from data block 3
+Read 1024 bytes from data block 4
+Read 1024 bytes from data block 5
+Read 1024 bytes from data block 6
+Read 1024 bytes from data block 7
+Read 1024 bytes from data block 8
+Read 1024 bytes from data block 9
+Read 1024 bytes from data block 10
+Read 1024 bytes from data block 11
+Read 1024 bytes from data block 12
+Read 1024 bytes from data block 13
+Read 778 bytes from data block 14
+Finished copying. Wrote 12042 bytes total to file.txt
+
+FILE_VERIFY large_input.txt file.txt
+
+SEND open dir2/file
+EXPECT
+Copying dir2/file, inode 4, into real filesystem
+Read 1024 bytes from data block 15
+Read 1024 bytes from data block 16
+Read 1024 bytes from data block 17
+Read 1024 bytes from data block 18
+Read 1024 bytes from data block 19
+Read 1024 bytes from data block 20
+Read 1024 bytes from data block 21
+Read 1024 bytes from data block 22
+Read 1024 bytes from data block 23
+Read 1024 bytes from data block 24
+Read 1024 bytes from data block 25
+Read 778 bytes from data block 26
+Finished copying. Wrote 12042 bytes total to file.txt
+
+FILE_VERIFY large_input.txt file.txt
+
+SEND open dir2/newfile
+EXPECT
+Copying dir2/newfile, inode 5, into real filesystem
+Read 1024 bytes from data block 27
+Read 1024 bytes from data block 28
+Read 1024 bytes from data block 29
+Read 1024 bytes from data block 30
+Read 1024 bytes from data block 31
+Read 1024 bytes from data block 32
+Read 1024 bytes from data block 33
+Read 1024 bytes from data block 34
+Read 1024 bytes from data block 35
+Read 1024 bytes from data block 36
+Read 1024 bytes from data block 37
+Read 778 bytes from data block 38
+Finished copying. Wrote 12042 bytes total to newfile.txt
+
+FILE_VERIFY large_input.txt newfile.txt
