@@ -44,7 +44,7 @@ test14:
 test15:
 - Test save and open commands with multi-line files
 - Save small multi-line file, read it back, and verify with open command
-- Test large multi-block files (>2KB spanning 3 blocks)
+- Test medium and large multi-block files (~2KB and ~12KB respectively)
 - Verify FILE_VERIFY functionality in test runner
 
 test16:
