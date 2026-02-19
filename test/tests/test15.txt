@@ -8,6 +8,15 @@ SEND create smallfile
 EXPECT
 Created new file smallfile, inode 1, data block 1
 
+SEND create mediumfile
+EXPECT
+Created new file mediumfile, inode 2, data block 2
+
+SEND create largefile
+EXPECT
+Allocated new data block 4 for directory, inode 0
+Created new file largefile, inode 3, data block 3
+
 SEND save small_input.txt smallfile
 EXPECT
 Copying from small_input.txt to smallfile, inode 1
@@ -30,29 +39,25 @@ Finished copying. Wrote 79 bytes total to smallfile.txt
 
 FILE_VERIFY smallfile.txt small_input.txt
 
-SEND create largefile
+SEND save medium_input.txt mediumfile
 EXPECT
-Created new file largefile, inode 2, data block 2
-
-SEND save large_input.txt largefile
-EXPECT
-Copying from large_input.txt to largefile, inode 2
+Copying from medium_input.txt to mediumfile, inode 2
 Wrote 1024 bytes to data block 2
-Wrote 1024 bytes to data block 3
-Wrote 805 bytes to data block 4
+Wrote 1024 bytes to data block 5
+Wrote 805 bytes to data block 6
 Finished copying. Wrote 2853 bytes total
 
-SEND open largefile
+SEND open mediumfile
 EXPECT
-Copying largefile, inode 2, into real filesystem
+Copying mediumfile, inode 2, into real filesystem
 Read 1024 bytes from data block 2
-Read 1024 bytes from data block 3
-Read 805 bytes from data block 4
-Finished copying. Wrote 2853 bytes total to largefile.txt
+Read 1024 bytes from data block 5
+Read 805 bytes from data block 6
+Finished copying. Wrote 2853 bytes total to mediumfile.txt
 
-FILE_VERIFY largefile.txt large_input.txt
+FILE_VERIFY mediumfile.txt medium_input.txt
 
-SEND read largefile
+SEND read mediumfile
 EXPECT
 BLOCK ONE - This file will span three data blocks to test multi-block handling.
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -65,4 +70,40 @@ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
 JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ
-Read 1024 bytes from file largefile, inode 2, data block 2
+Read 1024 bytes from file mediumfile, inode 2, data block 2
+
+SEND save large_input.txt largefile
+EXPECT
+Copying from large_input.txt to largefile, inode 3
+Wrote 1024 bytes to data block 3
+Wrote 1024 bytes to data block 7
+Wrote 1024 bytes to data block 8
+Wrote 1024 bytes to data block 9
+Wrote 1024 bytes to data block 10
+Wrote 1024 bytes to data block 11
+Wrote 1024 bytes to data block 12
+Wrote 1024 bytes to data block 13
+Wrote 1024 bytes to data block 14
+Wrote 1024 bytes to data block 15
+Wrote 1024 bytes to data block 16
+Wrote 778 bytes to data block 17
+Finished copying. Wrote 12042 bytes total
+
+SEND open largefile
+EXPECT
+Copying largefile, inode 3, into real filesystem
+Read 1024 bytes from data block 3
+Read 1024 bytes from data block 7
+Read 1024 bytes from data block 8
+Read 1024 bytes from data block 9
+Read 1024 bytes from data block 10
+Read 1024 bytes from data block 11
+Read 1024 bytes from data block 12
+Read 1024 bytes from data block 13
+Read 1024 bytes from data block 14
+Read 1024 bytes from data block 15
+Read 1024 bytes from data block 16
+Read 778 bytes from data block 17
+Finished copying. Wrote 12042 bytes total to largefile.txt
+
+FILE_VERIFY largefile.txt large_input.txt
