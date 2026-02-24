@@ -112,8 +112,9 @@ void calculate_disk_structure() {
     superblock_loaded = true;
 }
 
-int write_data_to_block_disk(FILE* disk, const int block_number, const void *data, const size_t size) {
-    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+// Writes data to a specified position in the data block
+int write_data_to_block_pos_disk(FILE* disk, const int block_number, const int position, const void *data, const size_t size) {
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE + position;
     const auto result = disk_write_at(disk, location, data, size);
 
     if (result != 0) {
@@ -123,21 +124,30 @@ int write_data_to_block_disk(FILE* disk, const int block_number, const void *dat
     return result;
 }
 
-int write_data_to_block(const int block_number, const void *data, const size_t size) {
+int write_data_to_block_pos(const int block_number, const int position, const void *data, const size_t size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
     if (!disk) {
         printf("File error: Failed to open disk\n");
         return -1;
     }
 
-    const auto result = write_data_to_block_disk(disk, block_number, data, size);
+    const auto result = write_data_to_block_pos_disk(disk, block_number, position, data, size);
 
     fclose(disk);
     return result;
 }
 
-int read_data_from_block_disk(FILE* disk, const int block_number, void* buffer, const size_t size) {
-    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE;
+// Writes data to the start of a data block
+int write_data_to_block_disk(FILE* disk, const int block_number, const void *data, const size_t size) {
+    return write_data_to_block_pos_disk(disk, block_number, 0, data, size);
+}
+
+int write_data_to_block(const int block_number, const void *data, const size_t size) {
+    return write_data_to_block_pos(block_number, 0, data, size);
+}
+
+int read_data_from_block_pos_disk(FILE* disk, const int block_number, const int position, void* buffer, const size_t size) {
+    const auto location = DATA_START + block_number * DEFAULT_BLOCK_SIZE + position;
     const auto result = disk_read_at(disk, location, buffer, size);
 
     if (result != 0) {
@@ -147,17 +157,25 @@ int read_data_from_block_disk(FILE* disk, const int block_number, void* buffer, 
     return result;
 }
 
-int read_data_from_block(const int block_number, void* buffer, const size_t size) {
+int read_data_from_block_pos(const int block_number, const int position, void* buffer, const size_t size) {
     FILE* disk = fopen(DEFAULT_DISK_NAME, "rb");
     if (!disk) {
         printf("File error: Failed to open disk\n");
         return -1;
     }
 
-    const auto result = read_data_from_block_disk(disk, block_number, buffer, size);
-    fclose(disk);
+    const auto result = read_data_from_block_pos_disk(disk, block_number, position, buffer, size);
 
+    fclose(disk);
     return result;
+}
+
+int read_data_from_block_disk(FILE* disk, const int block_number, void* buffer, const size_t size) {
+    return read_data_from_block_pos_disk(disk, block_number, 0, buffer, size);
+}
+
+int read_data_from_block(const int block_number, void* buffer, const size_t size) {
+    return read_data_from_block_pos(block_number, 0, buffer, size);
 }
 
 int read_inode_disk(FILE* disk, const int inode_number, struct inode* destination) {
@@ -307,6 +325,59 @@ int find_next_free_inode() {
     }
 
     return -1;
+}
+
+// TODO: Make both of these functions support accessing multiple data blocks
+// Writes the specified contents to the specified position of the file, allocating new data blocks as necessary
+int write_to_file(struct inode* file, const void* contents, const int length, const int position) {
+    const auto data_blocks_needed = length / superblock.block_size;
+    if (data_blocks_needed >= NUM_BLOCK_POINTERS) {
+        printf("Write to block at data block %d attempted, greater than max %d", data_blocks_needed, NUM_BLOCK_POINTERS - 1);
+        return -1;
+    }
+
+    auto data_blocks_allocated  = file->file_size / superblock.block_size;
+    const auto pos_in_block = position % superblock.block_size;
+
+    FILE* disk = fopen(DEFAULT_DISK_NAME, "r+b");
+    if (!disk) {
+        printf("Error: Failed to open disk\n");
+        return -1;
+    }
+
+    // Allocate blocks until the file has at least 'position' bytes allocated
+    if (data_blocks_allocated < data_blocks_needed) {
+        while (data_blocks_allocated < data_blocks_needed) {
+            const auto next_block = find_next_free_data_block_disk(disk);
+            if (next_block == -1) {
+                printf("No more data blocks available. Could not complete write.\n");
+                return -1;
+            }
+
+            data_blocks_allocated++;
+            file->block_pointers[data_blocks_allocated] = next_block;
+            set_data_block_status_disk(disk, next_block, DATA_BLOCK_USED);
+        }
+
+        file->file_size = (data_blocks_allocated - 1) * superblock.block_size + pos_in_block;
+    }
+
+    return write_data_to_block_pos_disk(disk, file->block_pointers[data_blocks_needed],
+        pos_in_block, contents, length);
+}
+
+// Reads the specified number of bytes from the specified position of a file
+// Returns the number of bytes read, or -1 for an error
+int read_from_file(const struct inode* file, void* destination, const int num_bytes, const int position) {
+    if (position + num_bytes > file->file_size) {
+        printf("Invalid read: attempted to read %d bytes starting at byte %d (last byte: %d) "
+               "from file with only %d bytes.", num_bytes, position, position + num_bytes, file->file_size);
+        return -1;
+    }
+
+    const auto data_block_number = file->block_pointers[position / superblock.block_size];
+
+    return read_data_from_block_pos(data_block_number, position, destination, num_bytes) == 0 ? num_bytes : -1;
 }
 
 // Returns the number of dentries in the specified directory
