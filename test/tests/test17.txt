@@ -37,9 +37,9 @@ SEND create dir1/dir2/file4
 EXPECT
 Created new file dir1/dir2/file4, inode 7, data block 8
 
-SEND save large_input.txt dir1/dir2/file3
+SEND save medium_input.txt dir1/dir2/file3
 EXPECT
-Copying from large_input.txt to dir1/dir2/file3, inode 6
+Copying from medium_input.txt to dir1/dir2/file3, inode 6
 Wrote 1024 bytes to data block 7
 Wrote 1024 bytes to data block 9
 Wrote 805 bytes to data block 10
@@ -74,9 +74,9 @@ SEND create dir1/dir3/file4
 EXPECT
 Created new file dir1/dir3/file4, inode 7, data block 8
 
-SEND save large_input.txt dir1/dir3/file3
+SEND save medium_input.txt dir1/dir3/file3
 EXPECT
-Copying from large_input.txt to dir1/dir3/file3, inode 6
+Copying from medium_input.txt to dir1/dir3/file3, inode 6
 Wrote 1024 bytes to data block 7
 Wrote 1024 bytes to data block 9
 Wrote 805 bytes to data block 10
