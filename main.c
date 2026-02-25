@@ -617,6 +617,47 @@ int get_inode_number_of_path(const char path[249], const int expected_file_type,
     return 0;
 }
 
+// Creates a new file as a child of the specified directory
+// Assumes that the the specified file path does not exist
+// Returns the inode allocated to the new file, -1 if allocation failed
+int create_file(const int parent_dir_inode_number, char* file_path) {
+    // Make sure the disk has a spare inode and data block
+    const auto inode_number = find_next_free_inode();
+
+    if (inode_number == -1) {
+        printf("All inodes are being used, unable to create file\n");
+        return -1;
+    }
+
+    const auto data_block_number = find_next_free_data_block();
+
+    if (data_block_number == -1) {
+        printf("All data blocks are being used, unable to create file\n");
+        return -1;
+    }
+
+    set_data_block_status(data_block_number, DATA_BLOCK_USED);
+
+    struct dentry dentry = {inode_number, TYPE_FILE};
+    const char* filename = get_last_of_path(file_path);
+    strcpy(dentry.name, filename);
+    struct inode inode = {0};
+    inode.file_size = 0;
+    inode.block_pointers[0] = data_block_number;
+    inode.is_used = true;
+
+    if (create_dentry(&dentry, parent_dir_inode_number) == -1) {
+        printf("All data blocks are being used, unable to create new dentry\n");
+        set_data_block_status(data_block_number, DATA_BLOCK_FREE);
+        return -1;
+    }
+    write_inode(inode_number, &inode);
+
+    if (verbose) printf("Created new file %s, inode %d, data block %d\n",
+        file_path, inode_number, data_block_number);
+    return inode_number;
+}
+
 int run_command_init(const char* disk_name) {
     const auto block_count = calculate_block_count(DEFAULT_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_INODE_COUNT);
 
@@ -722,42 +763,7 @@ int run_command_create(char* file_path) {
         return -1;
     }
 
-    // Make sure the disk has a spare inode and data block
-    const auto inode_number = find_next_free_inode();
-
-    if (inode_number == -1) {
-        printf("All inodes are being used, unable to create file\n");
-        return -1;
-    }
-
-    const auto data_block_number = find_next_free_data_block();
-
-    if (data_block_number == -1) {
-        printf("All data blocks are being used, unable to create file\n");
-        return -1;
-    }
-
-    set_data_block_status(data_block_number, DATA_BLOCK_USED);
-
-    struct dentry dentry = {inode_number, TYPE_FILE};
-    const char* filename = get_last_of_path(file_path);
-    strcpy(dentry.name, filename);
-    struct inode inode = {0};
-    inode.file_size = 0;
-    inode.block_pointers[0] = data_block_number;
-    inode.is_used = true;
-
-    if (create_dentry(&dentry, inode_number_dir) == -1) {
-        printf("All data blocks are being used, unable to create new dentry\n");
-        set_data_block_status(data_block_number, DATA_BLOCK_FREE);
-        return -1;
-    }
-    write_inode(inode_number, &inode);
-
-    if (verbose) printf("Created new file %s, inode %d, data block %d\n",
-        file_path, inode_number, data_block_number);
-
-    return 0;
+    return create_file(inode_number_dir, file_path) == -1 ? -1 : 0;
 }
 
 int run_command_write(char* file_path, const char* content) {
@@ -765,7 +771,7 @@ int run_command_write(char* file_path, const char* content) {
     const auto result = get_inode_number_of_path(file_path, TYPE_FILE, &inode_number);
 
     if (result != 0) {
-        printf("File %s does not exist in the current directory\n", file_path);
+        if (result == 1) printf("File %s does not exist in the current directory\n", file_path);
         return 1;
     }
 
@@ -861,13 +867,14 @@ int run_command_open(char* file_path) {
     fclose(disk);
 
     // +5 to give enough space for .txt\0
-    char output_file_name[strlen(file_path) + 5];
-    strcpy(output_file_name, file_path);
+    const char* file_base_name = get_last_of_path(file_path);
+    char output_file_name[strlen(file_base_name) + 5];
+    strcpy(output_file_name, file_base_name);
     strcat(output_file_name, ".txt");
 
     FILE* output_file = fopen(output_file_name, "wb");
     if (!output_file) {
-        printf("Error: Failed to open disk\n");
+        printf("Error: Failed to open output file\n");
         return -1;
     }
 
@@ -1036,10 +1043,10 @@ void remove_element(const int inode_number, const uint8_t file_type) {
 
     read_inode(inode_number, &inode);
 
-    const int num_block_pointers = ceil((double) inode.file_size / (double) superblock.block_size);
+    const int num_block_pointers = inode.file_size / superblock.block_size + 1;
 
     // printf("Freeing data blocks for inode %d...\n", inode_number);
-    for (int i = 0; i < NUM_BLOCK_POINTERS; i++) {
+    for (int i = 0; i < num_block_pointers; i++) {
         if (inode.block_pointers[i] == 0) break;
         // printf("Freeing data block %d, block pointer %d\n", inode.block_pointers[i], i);
         set_data_block_status(inode.block_pointers[i], DATA_BLOCK_FREE);
@@ -1139,6 +1146,102 @@ int run_command_rmdir(char* path) {
     return 0;
 }
 
+int run_command_cp(const char* source_file_path, char* dest_file_path) {
+    int source_inode_number, dest_inode_number;
+
+    auto result = get_inode_number_of_path(source_file_path, TYPE_FILE, &source_inode_number);
+    if (result != 0) {
+        if (result == 1) printf("File %s does not exist in the current directory\n", source_file_path);
+        return 1;
+    }
+
+    result = get_inode_number_of_path(dest_file_path, TYPE_FILE, &dest_inode_number);
+    if (result == -1) {
+        return -1;
+    }
+
+    if (result == 1) {
+        // File does not exist, create it first
+        if (verbose) printf("%s does not exist, creating...\n", dest_file_path);
+
+        dest_inode_number = create_file(dest_inode_number, dest_file_path);
+
+        if (dest_inode_number == -1) {
+            return -1;
+        }
+    } else if (verbose) {
+        printf("%s already exists, overwriting...\n", dest_file_path);
+    }
+
+    // File exists now, copy contents of source into dest
+    if (verbose) printf("Copying from %s, inode %d to %s, inode %d\n",
+        source_file_path, source_inode_number, dest_file_path, dest_inode_number);
+
+    struct inode source_inode, dest_inode;
+
+    read_inode(source_inode_number, &source_inode);
+    read_inode(dest_inode_number, &dest_inode);
+
+    const auto data_blocks_needed = source_inode.file_size / superblock.block_size;
+    const auto data_blocks_allocated = dest_inode.file_size / superblock.block_size;
+
+    int bytes_remaining = source_inode.file_size;
+    int bytes_copied = 0;
+    int current_block_pointer = 0;
+    while (bytes_remaining > 0) {
+        const auto bytes_to_copy = MIN(bytes_remaining, superblock.block_size);
+        // printf("current: %d\n", current_block_pointer);
+
+        if (current_block_pointer > data_blocks_allocated) {
+            const auto new_block_number = find_next_free_data_block();
+            if (new_block_number == -1) {
+                printf("Could not allocate new data block. Only copied %d bytes out of %d\n",
+                    bytes_copied, source_inode.file_size);
+                return -1;
+            }
+
+            set_data_block_status(new_block_number, DATA_BLOCK_USED);
+            dest_inode.block_pointers[current_block_pointer] = new_block_number;
+        }
+
+        const auto source_block = source_inode.block_pointers[current_block_pointer];
+        const auto dest_block = dest_inode.block_pointers[current_block_pointer];
+
+        char contents[bytes_to_copy];
+
+        if (read_data_from_block(source_block, contents, bytes_to_copy) != 0) {
+            printf("Error encountered while copying. Only copied %d bytes out of %d\n",
+                bytes_copied, source_inode.file_size);
+            return -1;
+        }
+
+        if (write_data_to_block(dest_block, contents, bytes_to_copy) != 0) {
+            printf("Error encountered while copying. Only copied %d bytes out of %d\n",
+                bytes_copied, source_inode.file_size);
+            return -1;
+        }
+
+        if (verbose) printf("Copied %d bytes from data block %d to data block %d\n",
+            bytes_to_copy, source_block, dest_block);
+
+        bytes_remaining -= bytes_to_copy;
+        bytes_copied += bytes_to_copy;
+        current_block_pointer++;
+    }
+    // If dest file is now smaller: free unused data blocks
+    if (data_blocks_allocated > data_blocks_needed) {
+        set_data_block_status(dest_inode.block_pointers[data_blocks_allocated], DATA_BLOCK_FREE);
+        dest_inode.block_pointers[data_blocks_allocated] = 0;
+    }
+    dest_inode.file_size = source_inode.file_size;
+
+    write_inode(dest_inode_number, &dest_inode);
+
+    if (verbose) printf("Finished copying. Copied %d bytes total\n", bytes_copied);
+
+    return 0;
+}
+
 int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], const char* disk_name) {
     // Initialize a filesystem
     if (strcmp(command[0], "init") == 0) {
@@ -1207,6 +1310,11 @@ int run_fs_command(const int argc, char command[MAX_ARGS][MAX_ARG_LEN + 1], cons
     // Change cwd to specified directory
     if (strcmp(command[0], "cd") == 0) {
         return run_command_cd(command[1], verbose);
+    }
+
+    // Copies the contents of a file into another (new or existing)
+    if (strcmp(command[0], "cp") == 0) {
+        return run_command_cp(command[1], command[2]);
     }
 
     if (strcmp(command[0], "exit") == 0) {

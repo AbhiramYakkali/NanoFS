@@ -47,8 +47,8 @@ Finished copying. Wrote 2853 bytes total
 
 SEND cp dir1/file dir2/file
 EXPECT
-Copying from dir1/file, inode 3 to dir2/file, inode 4
 dir2/file already exists, overwriting...
+Copying from dir1/file, inode 3 to dir2/file, inode 4
 Copied 1024 bytes from data block 3 to data block 15
 Copied 1024 bytes from data block 4 to data block 16
 Copied 1024 bytes from data block 5 to data block 17
@@ -66,7 +66,7 @@ Finished copying. Copied 12042 bytes total
 SEND cp dir1/file dir2/newfile
 EXPECT
 dir2/newfile does not exist, creating...
-Created new file dir2/newfile, inode 5, data block 33
+Created new file dir2/newfile, inode 5, data block 27
 Copying from dir1/file, inode 3 to dir2/newfile, inode 5
 Copied 1024 bytes from data block 3 to data block 27
 Copied 1024 bytes from data block 4 to data block 28
@@ -99,7 +99,7 @@ Read 1024 bytes from data block 13
 Read 778 bytes from data block 14
 Finished copying. Wrote 12042 bytes total to file.txt
 
-FILE_VERIFY large_input.txt file.txt
+FILE_VERIFY file.txt large_input.txt
 
 SEND open dir2/file
 EXPECT
@@ -118,7 +118,7 @@ Read 1024 bytes from data block 25
 Read 778 bytes from data block 26
 Finished copying. Wrote 12042 bytes total to file.txt
 
-FILE_VERIFY large_input.txt file.txt
+FILE_VERIFY file.txt large_input.txt
 
 SEND open dir2/newfile
 EXPECT
@@ -137,4 +137,4 @@ Read 1024 bytes from data block 37
 Read 778 bytes from data block 38
 Finished copying. Wrote 12042 bytes total to newfile.txt
 
-FILE_VERIFY large_input.txt newfile.txt
+FILE_VERIFY newfile.txt large_input.txt
